@@ -1,1 +1,20 @@
-/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+:root{
+  --bg:#ffffff;
+  --text:#0f172a;            /* slate-900 */
+  --muted:#64748b;           /* slate-500 */
+  --border:#e2e8f0;          /* slate-200 */
+  --blue:#2563eb;            /* indigo-600 */
+  --blue-2:#22d3ee;          /* cyan-400 */
+  --shadow:0 10px 30px rgba(0,0,0,.08);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color:var(--text);
+  background:var(--bg);
+}

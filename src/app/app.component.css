@@ -1,0 +1,361 @@
+/* =========================
+   Layout / Header
+   ========================= */
+.shell{
+  height:100vh; width:100vw;
+  display:flex; flex-direction:column;
+  background:#fff;
+}
+
+/* Top gradient bar */
+.topbar{
+  height:72px; padding:0 20px;
+  background:linear-gradient(90deg,#3b5bfd 0%,#00d2ff 100%);
+  color:#fff; display:flex; align-items:center; justify-content:space-between;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+}
+.brand{ display:flex; align-items:center; gap:12px }
+.logo{ width:36px; height:36px; object-fit:contain }
+.titles{ display:flex; flex-direction:column; line-height:1.1 }
+.title{ font-weight:600; font-size:18px }
+.online{ font-size:12px; opacity:.95 }
+.dot{ width:8px; height:8px; display:inline-block; border-radius:50%; background:#22c55e; margin-right:6px }
+
+/* Header actions: icon-only */
+.actions{ display:flex; align-items:center; gap:10px }
+.icon-btn{
+  all:unset;
+  display:inline-flex; align-items:center; justify-content:center;
+  width:clamp(32px,4.2vw,40px); height:clamp(32px,4.2vw,40px);
+  cursor:pointer; border-radius:8px; line-height:0;
+}
+.icon-btn .ico{
+  width:clamp(20px,3vw,28px); height:clamp(20px,3vw,28px); display:block;
+  filter:brightness(0) invert(1);
+}
+.icon-btn:hover .ico{ opacity:.9; transform:scale(1.05) }
+.icon-btn:active .ico{ transform:scale(.96) }
+.icon-btn:focus-visible{ outline:2px solid #fff; outline-offset:2px }
+
+/* =========================
+   Canvas / Messages
+   ========================= */
+.canvas{
+  flex:1 1 auto; min-height:0; overflow:auto; background:#fff;
+}
+
+.msgs{
+  padding:14px;
+  display:flex; flex-direction:column; gap:10px;
+}
+
+/* rows & avatars */
+.row{
+  display:flex; align-items:flex-end; gap:8px; justify-content:flex-start;
+}
+.row.me{ justify-content:flex-end }
+
+.avatar{
+  width:clamp(24px,4vw,32px); height:clamp(24px,4vw,32px);
+  border-radius:50%; background:#eef2ff; border:1px solid #e5e7eb;
+  display:grid; place-items:center; overflow:hidden; flex:0 0 auto;
+}
+.avatar.me{ background:#e8f7ee; border-color:#c6f6d5 }
+.avatar img{ width:70%; height:70%; object-fit:contain; display:block }
+
+/* bubbles */
+.bubble{
+  max-width:78%; padding:10px 12px; border-radius:12px;
+  white-space:pre-wrap; word-break:break-word;
+  border:1px solid #e5e7eb; font-size:14px; line-height:1.35;
+  will-change:transform,opacity;
+}
+.bubble.bot{
+  background:#ECECEC; border-color:#dbeafe;
+  border-radius:0 16px 16px 16px;               /* left side flat */
+  animation:bubbleInLeft 260ms cubic-bezier(.82,.69,.27,1) both;
+}
+.bubble.me{
+  color:#4361EE; background:#ECECEC; border-color:#bbf7d0;
+  border-radius:16px 16px 0 16px;               /* right side flat */
+  animation:bubbleInRight 260ms cubic-bezier(.22,.9,.27,1) both;
+}
+
+/* typing (3 dots) */
+.bubble.typing{
+  display:inline-flex; align-items:center; gap:6px; border-style:dashed;
+  animation:none !important;
+}
+.bubble.typing span{
+  width:6px; height:6px; background:#9ca3af; border-radius:50%;
+  display:inline-block; animation:blink 1.2s infinite;
+}
+.bubble.typing span:nth-child(2){ animation-delay:.2s }
+.bubble.typing span:nth-child(3){ animation-delay:.4s }
+@keyframes blink{ 0%,80%,100%{opacity:.2;transform:translateY(0)} 40%{opacity:1;transform:translateY(-2px)} }
+
+/* system chip (optional) */
+.system{
+  margin:0 auto; background:#fff7ed; border:1px dashed #fb923c; color:#92400e;
+  font-size:12px; padding:6px 10px; border-radius:10px;
+}
+
+/* stack (bubble + meta) */
+.stack{ display:flex; flex-direction:column; align-items:flex-start; max-width:78% }
+.row.me .stack{ align-items:flex-end }
+.bubble{max-width: 100%;}
+.meta-line{
+  margin-top:4px; font-size:11px; line-height:1; color:#9ca3af;
+  display:flex; align-items:center; gap:6px;
+  opacity:0; transform:translateY(-2px);
+  animation:metaFade 180ms ease-out 140ms forwards;
+  will-change:transform,opacity;
+}
+.meta-line.left{ align-self:flex-start }
+.meta-line.right{ align-self:flex-end }
+.meta-line .tick{ font-size:12px; opacity:.9 }
+.meta-line .tick-img{ width:12px; height:12px; display:inline-block; filter:grayscale(1) brightness(.65); transform:translateY(1px) }
+
+/* avatars pop in subtly */
+.row .avatar{
+  opacity:0; transform:scale(.88);
+  animation:avatarPop 180ms ease-out forwards;
+}
+.row.me .avatar{ animation-delay:60ms }
+
+/* entrance keyframes */
+@keyframes bubbleInLeft{
+  0%{opacity:0;transform:translateX(-10px) translateY(4px) scale(.98)}
+  60%{opacity:1;transform:translateX(0) translateY(0) scale(1.02)}
+  100%{opacity:1;transform:none}
+}
+@keyframes bubbleInRight{
+  0%{opacity:0;transform:translateX(10px) translateY(4px) scale(.98)}
+  60%{opacity:1;transform:translateX(0) translateY(0) scale(1.02)}
+  100%{opacity:1;transform:none}
+}
+@keyframes metaFade{ to{opacity:1;transform:none} }
+@keyframes avatarPop{ 0%{opacity:0;transform:scale(.88)} 100%{opacity:1;transform:scale(1)} }
+
+@media (prefers-reduced-motion:reduce){
+  .bubble.bot,.bubble.me,.row .avatar,.meta-line{ animation:none !important }
+}
+
+/* =========================
+   Quick replies (chips)
+   ========================= */
+.quick-row{
+  display:flex; flex-wrap:wrap; gap:10px; margin:0 0 10px 0;  justify-content:center;
+}
+.chip{
+  appearance:none; border:none; cursor:pointer; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:999px; line-height:1;
+  font-size:clamp(12px,1.6vw,14px); color:#0f172a; 
+  background:
+    linear-gradient(#fff,#fff) padding-box,
+    linear-gradient(90deg,#3b5bfd,#00d2ff) border-box;
+  border:2px solid transparent;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.chip:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(59,91,253,.12) }
+.chip:active{ transform:translateY(0) }
+.chip:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(59,91,253,.35) }
+@media (max-width:420px){ .chip{ padding:6px 10px; font-size:12px } }
+
+/* =========================
+   Composer
+   ========================= */
+.composer-wrap{
+  padding: 12px;  /* was 20px */
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  background: transparent;
+}
+.composer {
+  position: relative;
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  grid-template-columns: 56px 1fr 56px 64px;   /* + | input | mic | send */
+  height: 72px;
+  padding: 10px 12px;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(90deg, #3b5bfd, #00fa64, #f6a800) border-box;
+  border: 2px solid transparent;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+
+  /* Animation */
+  background-size: 300% 300%;   /* bigger background for motion */
+  animation: moveGradient 6s linear infinite;
+}
+
+@keyframes moveGradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+
+/* circle buttons (+ and mic) */
+.circle-btn{
+  width:56px; height:56px; border-radius:50%; border:none;
+  background:#fff; color:#3b5bfd; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background .2s ease, transform .2s ease;font-size: clamp(28px, 3.6vw, 40px);
+}
+.circle-btn img{ width:34px; height:34px }
+.circle-btn:hover{ background:#f1f5ff; transform:scale(1.05) }
+.circle-btn.mic.rec{ background:#fff0f0; color:#ef4444 }
+.circle-btn.mic.rec img{
+  filter:invert(39%) sepia(92%) saturate(3298%) hue-rotate(348deg) brightness(96%) contrast(101%);
+}
+
+
+
+
+/* send */
+.send-btn{
+  width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; padding:0;
+  transition:transform .2s ease, opacity .2s ease; color:#fff;
+}
+.send-btn img{ width:50px; height:50px }
+.send-btn:disabled{ opacity:.6; cursor:not-allowed }
+.send-btn:hover:not(:disabled){ transform:scale(1.05) }
+
+/* input */
+.composer input{
+  height:56px; border:none; outline:none; background:transparent;
+  font-size:18px; padding:0 6px; color:#0f172a;
+  min-width:0; /* allow the grid cell to shrink on small screens */
+}
+.composer input::placeholder{ color:#94a3b8 }
+
+/* helper row */
+.helper{
+  margin-top:8px; font-size:12px; color:#64748b;
+  display:flex; gap:12px; align-items:center;
+}
+
+/* utilities */
+.hidden{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+
+/* Animate avatar while typing (user or bot) */
+.avatar.talking{
+  position: relative;
+  animation: avatarTalk 900ms ease-in-out infinite;
+}
+.avatar.talking::after{
+  content:"";
+  position:absolute; inset:-2px;
+  border-radius:50%;
+  box-shadow:0 0 0 0 rgba(59,91,253,.35);
+  animation: avatarPing 1.3s ease-out infinite;
+  pointer-events:none;
+}
+
+/* Keyframes for talking glow & gentle bob */
+@keyframes avatarTalk{
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-2px); }
+}
+@keyframes avatarPing{
+  0%   { box-shadow:0 0 0 0 rgba(59,91,253,.35); }
+  70%  { box-shadow:0 0 0 10px rgba(59,91,253,0); }
+  100% { box-shadow:0 0 0 0 rgba(59,91,253,0); }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .avatar.talking{ animation: none !important }
+  .avatar.talking::after{ animation: none !important }
+}
+
+
+
+/* --- Recording chip (replaces input while recording) --- */
+.rec-chip{
+  height:56px; width:100%;
+  display:grid; grid-template-columns: 44px 1fr 44px; align-items:center;
+  gap:8px; border-radius:999px; background:#fff;
+  border:1px dashed #e5e7eb;
+  padding:0 6px; box-sizing:border-box;
+}
+
+.rec-btn{
+  height:40px; width:40px; border:none; border-radius:50%;
+  display:grid; place-items:center; cursor:pointer; background:#f8fafc;
+  font-weight:600; font-size:18px; line-height:1;
+}
+.rec-btn:hover{ background:#eef2ff }
+.rec-x{ color:#ef4444 }
+.rec-ok{ color:#10b981 }
+
+.rec-body{
+  display:grid; grid-template-columns: auto 1fr; align-items:center; gap:10px;
+  min-width:0;   /* allow text to shrink */
+}
+
+.rec-left{
+  display:flex; align-items:center; gap:8px;
+}
+.rec-dot{
+  width:10px; height:10px; border-radius:50%; background:#ef4444;
+  box-shadow:0 0 0 0 rgba(239,68,68,.45);
+  animation: recPulse 1.3s ease-out infinite;
+}
+.rec-timer{
+  font-variant-numeric: tabular-nums;
+  font-size:14px; color:#ef4444;
+}
+
+.rec-wave{
+  display:flex; align-items:center; gap:2px; height:16px;
+  min-width:90px; max-width:120px;
+}
+.rec-wave span{
+  width:3px; height:8px; border-radius:2px; background:#94a3b8;
+  animation: wave 1s ease-in-out infinite;
+}
+.rec-wave span:nth-child(3n){ animation-delay:.1s }
+.rec-wave span:nth-child(3n+1){ animation-delay:.2s }
+.rec-wave span:nth-child(3n+2){ animation-delay:.3s }
+
+.rec-text{
+  min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  font-size:14px; color:#0f172a;
+}
+.rec-text.empty{ color:#94a3b8 }
+
+/* mic “recording” visual (you already have .circle-btn.mic.rec) */
+.circle-btn.mic.rec{
+  background:#fff0f0; color:#ef4444;
+}
+
+/* animations */
+@keyframes recPulse{
+  0%{ box-shadow:0 0 0 0 rgba(239,68,68,.45) }
+  70%{ box-shadow:0 0 0 10px rgba(239,68,68,0) }
+  100%{ box-shadow:0 0 0 0 rgba(239,68,68,0) }
+}
+@keyframes wave{
+  0%,100%{ transform: scaleY(.5) }
+  50%    { transform: scaleY(1.3) }
+}
+
+/* keep layout stable on tiny phones */
+@media (max-width: 420px){
+  .rec-wave{ min-width:70px; max-width:90px }
+  .rec-btn{ height:36px; width:36px; font-size:16px }
+}
