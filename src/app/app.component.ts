@@ -254,6 +254,7 @@ export class AppComponent implements AfterViewInit {
   /* ===== Send flow ===== */
   send() {
     const msg = this.text.trim();
+    if (!msg && this.attachCount === 0) return;
     if (!msg && !this.lastAudioUrl && this.attachCount === 0) return;
 
     // If recording UI was open, ensure it’s closed

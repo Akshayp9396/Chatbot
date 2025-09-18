@@ -107,59 +107,59 @@
         aria-label="Message input" /> -->
 
 
-       <!-- Input OR Recording chip -->
-    <ng-container *ngIf="!isRecUI; else recordingTpl">
-      <input
-        type="text"
-        [(ngModel)]="text"
-        (input)="onUserTyping()"
-        (blur)="stopUserTyping(true)"
-        (keyup.enter)="send()"
-        placeholder="Add a message..."
-        aria-label="Message input" />
-    </ng-container>
+        <!-- Input OR Recording chip -->
+        <ng-container *ngIf="!isRecUI; else recordingTpl">
+          <input
+            type="text"
+            [(ngModel)]="text"
+            (input)="onUserTyping()"
+            (blur)="stopUserTyping(true)"
+            (keyup.enter)="send()"
+            placeholder="Add a message..."
+            aria-label="Message input" />
+        </ng-container>
 
-    <ng-template #recordingTpl>
-      <div class="rec-chip" role="group" aria-label="Recording controls">
-        <button class="rec-btn rec-x" (click)="cancelRecording()" aria-label="Cancel recording">×</button>
+        <ng-template #recordingTpl>
+          <div class="rec-chip" role="group" aria-label="Recording controls">
+            <button class="rec-btn rec-x" (click)="cancelRecording()" aria-label="Cancel recording"> × </button>
 
-        <div class="rec-body">
-          <div class="rec-left">
-            <span class="rec-dot" aria-hidden="true"></span>
-            <span class="rec-timer">{{ recElapsedLabel }}</span>
+            <div class="rec-body">
+              <div class="rec-left">
+                <span class="rec-dot" aria-hidden="true"></span>
+                <span class="rec-timer">{{ recElapsedLabel }}</span>
+              </div>
+
+              <div class="rec-wave" aria-hidden="true">
+                <span *ngFor="let _ of waveBars"></span>
+              </div>
+
+              <div class="rec-text" [class.empty]="!interimTranscript && !finalTranscript">
+                {{ interimTranscript || finalTranscript || 'Listening…' }}
+              </div>
+            </div>
+
+            <button class="rec-btn rec-ok" (click)="confirmRecording()" aria-label="Confirm transcription">✓</button>
           </div>
+        </ng-template>
 
-          <div class="rec-wave" aria-hidden="true">
-            <span *ngFor="let _ of waveBars"></span>
-          </div>
+        <!-- Mic -->
+        <button
+          class="circle-btn mic"
+          [class.rec]="isRecording"
+          (click)="onMicClick()"
+          [attr.aria-pressed]="isRecording"
+          [title]="isRecording ? 'Stop recording' : 'Record voice'">
+          <img src="assets/icons/mic.svg" alt="mic" />
+        </button>
 
-          <div class="rec-text" [class.empty]="!interimTranscript && !finalTranscript">
-            {{ interimTranscript || finalTranscript || 'Listening…' }}
-          </div>
-        </div>
-
-        <button class="rec-btn rec-ok" (click)="confirmRecording()" aria-label="Confirm transcription">✓</button>
-      </div>
-    </ng-template>
-
-    <!-- Mic -->
-    <button
-      class="circle-btn mic"
-      [class.rec]="isRecording"
-      (click)="onMicClick()"
-      [attr.aria-pressed]="isRecording"
-      [title]="isRecording ? 'Stop recording' : 'Record voice'">
-      <img src="assets/icons/mic.svg" alt="mic" />
-    </button>
-
-    <!-- Send -->
-    <button
-      class="send-btn"
-      (click)="send()"
-      [disabled]="!text.trim() && !lastAudioUrl"
-      title="Send">
-      <img src="assets/icons/send.svg" alt="Send" />
-    </button>
+        <!-- Send -->
+        <button
+          class="send-btn"
+          (click)="send()"
+          [disabled]="!text.trim()"   
+          title="Send">
+          <img src="assets/icons/send.svg" alt="Send" />
+        </button>
 
     
       <!-- hidden file input -->
@@ -173,9 +173,9 @@
     </div>
 
     <!-- Helper row (optional) -->
-    <div class="helper" *ngIf="attachCount || lastAudioUrl">
+    <!-- <div class="helper" *ngIf="attachCount || lastAudioUrl">
       <span *ngIf="attachCount">{{ attachCount }} file(s) selected</span>
       <a *ngIf="lastAudioUrl" [href]="lastAudioUrl" target="_blank" rel="noopener">Preview last recording</a>
-    </div>
+    </div> -->
   </footer>
 </div>
