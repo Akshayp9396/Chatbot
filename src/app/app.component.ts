@@ -1,4 +1,6 @@
-import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, ViewChild, OnDestroy } from '@angular/core';
+import { AnimationOptions } from 'ngx-lottie';
+import type { AnimationItem } from 'lottie-web';
 
 type Sender = 'user' | 'bot' | 'system' | 'typing';
 
@@ -18,9 +20,12 @@ declare global {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent implements AfterViewInit {
+export class AppComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLDivElement>;
-  @ViewChild('fileInput') fileInputRef!: ElementRef<HTMLInputElement>;
+
+  // Hidden inputs used for attachment picking
+  @ViewChild('imgInput') imgInputRef!: ElementRef<HTMLInputElement>;
+  @ViewChild('docInput') docInputRef!: ElementRef<HTMLInputElement>;
 
   title = 'Frontend';
 
@@ -42,6 +47,17 @@ export class AppComponent implements AfterViewInit {
   userTyping = false;
   private userTypingTimer: any = null;
 
+  // ===== Attach popover + status chips =====
+  isAttachOpen = false;
+  pendingPick: 'images' | 'docs' | null = null;
+  imagesSelected: File[] = [];
+  docsSelected: File[] = [];
+  ttsEnabled = false;
+
+  // ===== Attachment previews (shown above composer) =====
+  imagePreviews: { url: string; name: string; sizeKB: number }[] = [];
+  docPreviews:   { name: string; ext: string; sizeKB: number }[] = [];
+
   // Audio recording + STT
   isRecording = false;              // for mic button visual
   isRecUI = false;                  // whether chip replaces input
@@ -52,7 +68,7 @@ export class AppComponent implements AfterViewInit {
 
   recognition?: any;                // SpeechRecognition instance
   sttSupported = false;
-  sttLang = 'en-IN';                // change if needed
+  sttLang = 'en-IN';
   interimTranscript = '';
   finalTranscript = '';
 
@@ -64,65 +80,168 @@ export class AppComponent implements AfterViewInit {
   // simple bars for the fake wave
   waveBars = new Array(14);
 
-  ngAfterViewInit(): void {
-    this.scrollCanvasToBottom();
+  ngAfterViewInit(): void { this.scrollCanvasToBottom(); }
+
+  ngOnDestroy(): void {
+    // Clean up any created object URLs
+    this.revokeImagePreviews();
   }
 
   /* ===== Header actions ===== */
   onRefresh(): void {
     this.messages = [
-      { id: this.uuid(), text: "Hello! I’m your assistant. How can I help you today?", sender: 'bot', createdAt: new Date() }
+      {
+        id: this.uuid(),
+        text: "Hello! Welcome to Tunningspot . I'm your virtual assistant. How can I help you today?",
+        sender: 'bot',
+        createdAt: new Date()
+      }
     ];
     this.userTyping = false;
     this.text = '';
     this.lastAudioUrl = null;
+    this.imagesSelected = [];
+    this.docsSelected = [];
+    this.ttsEnabled = false;
+    this.isAttachOpen = false;
+
+    // Reset previews too
+    this.revokeImagePreviews();
+    this.docPreviews = [];
+
     this.scrollCanvasToBottom();
   }
 
   chatOpen = true;
   onClose(): void { this.chatOpen = false; }
 
-  /* ===== Files ===== */
-  openFilePicker() { this.fileInputRef.nativeElement.click(); }
-  onFiles(e: Event) {
+  /* ===== Lottie options for bot avatar + typing indicator ===== */
+  botAvatarOpts: AnimationOptions = {
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true
+  };
+
+  botTypingOpts: AnimationOptions = {
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true
+  };
+
+  /* ===== Attach popover actions ===== */
+  toggleAttachMenu(): void { this.isAttachOpen = !this.isAttachOpen; }
+  closeAttachMenu(): void { this.isAttachOpen = false; }
+
+  pickImages(): void {
+    // Limit selection to images and trigger the hidden input
+    this.pendingPick = 'images';
+    if (this.imgInputRef?.nativeElement) {
+      this.imgInputRef.nativeElement.accept = 'image/*';
+      this.imgInputRef.nativeElement.click();
+    }
+    // Popover will auto-close in onImagesSelected()
+  }
+
+  pickDocs(): void {
+    // Limit selection to common document types and trigger the hidden input
+    this.pendingPick = 'docs';
+    if (this.docInputRef?.nativeElement) {
+      this.docInputRef.nativeElement.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx';
+      this.docInputRef.nativeElement.click();
+    }
+    // Popover will auto-close in onDocsSelected()
+  }
+
+  enableTTS(): void {
+    this.ttsEnabled = true;
+    this.closeAttachMenu();
+  }
+  disableTTS(): void { this.ttsEnabled = false; }
+
+  clearImages(): void {
+    this.revokeImagePreviews();
+    this.imagesSelected = [];
+  }
+  clearDocs(): void {
+    this.docsSelected = [];
+    this.docPreviews = [];
+  }
+
+  /* ===== File selection handlers (previews + auto close) ===== */
+  public onImagesSelected(e: Event): void {
     const input = e.target as HTMLInputElement;
-    this.attachCount = input.files?.length ?? 0;
+    const files = Array.from(input.files ?? []);
+
+    this.imagesSelected = files;
+    this.buildImagePreviews(files);     // create object-URL thumbnails
+
+    this.isAttachOpen = false;          // auto-close popover
+    input.value = '';                   // allow picking same file again
+  }
+
+  public onDocsSelected(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+
+    this.docsSelected = files;
+    this.docPreviews = files.map(f => ({
+      name: f.name,
+      ext: (f.name.split('.').pop() || '').toLowerCase(),
+      sizeKB: Math.max(1, Math.round(f.size / 1024))
+    }));
+
+    this.isAttachOpen = false;          // auto-close popover
+    input.value = '';
+  }
+
+  /* ===== Image preview helpers ===== */
+  private buildImagePreviews(files: File[]) {
+    this.revokeImagePreviews(); // clear old URLs first
+    this.imagePreviews = files.map(f => ({
+      url: URL.createObjectURL(f),
+      name: f.name,
+      sizeKB: Math.max(1, Math.round(f.size / 1024))
+    }));
+  }
+
+  private revokeImagePreviews() {
+    for (const p of this.imagePreviews) {
+      try { URL.revokeObjectURL(p.url); } catch {}
+    }
+    this.imagePreviews = [];
   }
 
   /* ===== Mic button ===== */
   async onMicClick() {
-    if (this.isRecUI) {
-      // already recording; do nothing (user will press × or ✓)
-      return;
-    }
+    if (this.isRecUI) return; // already recording
     await this.startRecordingUI();
   }
 
   /* ===== Start Recording + STT ===== */
   private async startRecordingUI() {
-    // 1) get mic audio
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (e) {
+    } catch {
       alert('Microphone permission denied or unsupported.');
       return;
     }
 
-    // 2) MediaRecorder for audio blob
+    // MediaRecorder
     this.audioChunks = [];
     this.mediaRecorder = new MediaRecorder(this.audioStream);
     this.mediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) this.audioChunks.push(ev.data); };
     this.mediaRecorder.onstop = () => {
       const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
       this.lastAudioUrl = URL.createObjectURL(blob);
-      // stop tracks
       this.audioStream?.getTracks().forEach(t => t.stop());
       this.audioStream = undefined;
       this.isRecording = false;
     };
     this.mediaRecorder.start();
 
-    // 3) STT live
+    // STT (browser)
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     this.sttSupported = !!SR;
     if (this.sttSupported) {
@@ -135,56 +254,35 @@ export class AppComponent implements AfterViewInit {
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const res = event.results[i];
-          if (res.isFinal) {
-            this.finalTranscript += res[0].transcript + ' ';
-          } else {
-            interim += res[0].transcript;
-          }
+          if (res.isFinal) this.finalTranscript += res[0].transcript + ' ';
+          else interim += res[0].transcript;
         }
         this.interimTranscript = interim.trim();
       };
-      this.recognition.onerror = (e: any) => {
-        // keep recording; just no STT
-        console.warn('STT error', e);
-      };
-      this.recognition.onend = () => {
-        // Chrome may auto-end on silence; if still recording, restart
-        if (this.isRecUI) {
-          try { this.recognition.start(); } catch {}
-        }
-      };
+      this.recognition.onerror = () => {};
+      this.recognition.onend = () => { if (this.isRecUI) { try { this.recognition.start(); } catch {} } };
       try { this.recognition.start(); } catch {}
     }
 
-    // 4) show chip + timer
+    // show chip + timer
     this.isRecUI = true;
     this.isRecording = true;
     this.interimTranscript = '';
     this.finalTranscript = '';
     this.recStartMs = Date.now();
     this.recElapsedMs = 0;
-    this.recTimerId = setInterval(() => {
-      this.recElapsedMs = Date.now() - this.recStartMs;
-    }, 250);
+    this.recTimerId = setInterval(() => { this.recElapsedMs = Date.now() - this.recStartMs; }, 250);
   }
 
-  /* ===== Cancel / Confirm ===== */
+  /* ===== Cancel / Confirm recording ===== */
   cancelRecording() {
-    // stop STT
     try { this.recognition?.stop(); } catch {}
     this.recognition = undefined;
-
-    // stop MediaRecorder (will set lastAudioUrl in onstop, but we discard)
     try { this.mediaRecorder?.stop(); } catch {}
     this.mediaRecorder = undefined;
 
-    // discard audio preview
-    if (this.lastAudioUrl) {
-      URL.revokeObjectURL(this.lastAudioUrl);
-      this.lastAudioUrl = null;
-    }
+    if (this.lastAudioUrl) { URL.revokeObjectURL(this.lastAudioUrl); this.lastAudioUrl = null; }
 
-    // clear timer & UI
     if (this.recTimerId) { clearInterval(this.recTimerId); this.recTimerId = null; }
     this.isRecUI = false;
     this.isRecording = false;
@@ -194,29 +292,36 @@ export class AppComponent implements AfterViewInit {
   }
 
   confirmRecording() {
-    // stop STT
     try { this.recognition?.stop(); } catch {}
     this.recognition = undefined;
-
-    // stop MediaRecorder; keep the audio preview link
     try { this.mediaRecorder?.stop(); } catch {}
     this.mediaRecorder = undefined;
 
-    // clear timer & UI
     if (this.recTimerId) { clearInterval(this.recTimerId); this.recTimerId = null; }
     this.isRecUI = false;
     this.isRecording = false;
 
-    // put transcript into the input (user clicks Send to submit)
     const textOut = (this.finalTranscript || this.interimTranscript || '').trim();
     this.text = textOut;
 
-    // reset interim buffers
     this.interimTranscript = '';
     this.finalTranscript = '';
     this.recElapsedMs = 0;
   }
 
+
+  removeImage(idx: number): void {
+  // revoke object URL and remove from both arrays
+  const p = this.imagePreviews[idx];
+  try { URL.revokeObjectURL(p.url); } catch {}
+  this.imagePreviews.splice(idx, 1);
+  this.imagesSelected.splice(idx, 1);
+}
+
+removeDoc(idx: number): void {
+  this.docPreviews.splice(idx, 1);
+  this.docsSelected.splice(idx, 1);
+}
   /* Timer label like 0:07, 1:23 */
   get recElapsedLabel(): string {
     const s = Math.floor(this.recElapsedMs / 1000);
@@ -237,6 +342,11 @@ export class AppComponent implements AfterViewInit {
       this.hideBotTyping();
       const reply = this.generateReply(msg);
       this.push({ id: this.uuid(), text: reply, sender: 'bot', createdAt: new Date() });
+      if (this.ttsEnabled && 'speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance(reply);
+        u.lang = 'en-IN';
+        window.speechSynthesis.speak(u);
+      }
     }, 900);
   }
 
@@ -254,44 +364,59 @@ export class AppComponent implements AfterViewInit {
   /* ===== Send flow ===== */
   send() {
     const msg = this.text.trim();
-    if (!msg && this.attachCount === 0) return;
-    if (!msg && !this.lastAudioUrl && this.attachCount === 0) return;
+    if (!msg && this.attachCount === 0 && this.imagesSelected.length === 0 && this.docsSelected.length === 0) return;
 
-    // If recording UI was open, ensure it’s closed
     if (this.isRecUI) this.cancelRecording();
-
-    // user stops typing
     this.stopUserTyping(true);
 
-    // Push user text bubble if present
     if (msg) {
       this.push({ id: this.uuid(), text: msg, sender: 'user', createdAt: new Date() });
     }
 
-    // Optional system note for audio/attachments
-    if (!msg && (this.lastAudioUrl || this.attachCount > 0)) {
-      this.push({
-        id: this.uuid(),
-        text: this.attachCount > 0 ? `📎 ${this.attachCount} attachment(s) selected` : '🎤 Voice message recorded',
-        sender: 'system',
-        createdAt: new Date()
-      });
+    // (optional) system notes for selected files
+    if (this.imagesSelected.length > 0) {
+      this.push({ id: this.uuid(), text: `🖼️ ${this.imagesSelected.length} image(s) attached`, sender: 'system', createdAt: new Date() });
+    }
+    if (this.docsSelected.length > 0) {
+      this.push({ id: this.uuid(), text: `📄 ${this.docsSelected.length} document(s) attached`, sender: 'system', createdAt: new Date() });
     }
 
-    // Reset composer bits (keep lastAudioUrl so helper shows preview)
+    // clear input and legacy attach count
     this.text = '';
     this.attachCount = 0;
-    if (this.fileInputRef?.nativeElement) this.fileInputRef.nativeElement.value = '';
 
-    // Bot typing…
     this.showBotTyping();
     setTimeout(() => {
       this.hideBotTyping();
       const reply = this.generateReply(msg);
       this.push({ id: this.uuid(), text: reply, sender: 'bot', createdAt: new Date() });
-      // clear audio after “sending” if you don’t want it to persist:
-      // if (this.lastAudioUrl) { URL.revokeObjectURL(this.lastAudioUrl); this.lastAudioUrl = null; }
+
+      // Speak the reply if TTS mode is enabled
+      if (this.ttsEnabled && 'speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance(reply);
+        u.lang = 'en-IN';
+        window.speechSynthesis.speak(u);
+      }
+
+      // you can clear selected files after sending if desired:
+      // this.imagesSelected = [];
+      // this.docsSelected = [];
+      // this.revokeImagePreviews();
+      // this.docPreviews = [];
     }, 900);
+  }
+
+  // counts used by template chips
+  public get imgCount(): number { return this.imagesSelected.length; }
+  public get docCount(): number { return this.docsSelected.length; }
+
+  // alias for the attach popover boolean (used by *ngIf in the template)
+  public get showAttachMenu(): boolean { return this.isAttachOpen; }
+  public set showAttachMenu(v: boolean) { this.isAttachOpen = v; }
+
+  // alias for TTS toggle button in the popover
+  public toggleTTS(): void {
+    this.ttsEnabled = !this.ttsEnabled;
   }
 
   /* ===== Helpers ===== */
@@ -306,6 +431,7 @@ export class AppComponent implements AfterViewInit {
     }
     this.scrollCanvasToBottom();
   }
+
   private hideBotTyping() {
     this.messages = this.messages.filter(m => m.sender !== 'typing');
   }

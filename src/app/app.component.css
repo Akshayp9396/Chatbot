@@ -56,9 +56,14 @@
 .row.me{ justify-content:flex-end }
 
 .avatar{
-  width:clamp(24px,4vw,32px); height:clamp(24px,4vw,32px);
+  width:clamp(40px,6vw,56px);   /* was 24 → 32px */
+  height:clamp(40px,6vw,56px);
   border-radius:50%; background:#eef2ff; border:1px solid #e5e7eb;
-  display:grid; place-items:center; overflow:hidden; flex:0 0 auto;
+  display:grid; place-items:center; 
+  display: flex;                   /* flex instead of grid */
+  align-items: center;             /* center vertically */
+  justify-content: center;  
+  overflow:hidden; flex:0 0 auto;
 }
 .avatar.me{ background:#e8f7ee; border-color:#c6f6d5 }
 .avatar img{ width:70%; height:70%; object-fit:contain; display:block }
@@ -183,7 +188,8 @@
   width: 100%;
   max-width: 100%;
   border-radius: 999px;
-  overflow: hidden;
+  /* overflow: hidden; */
+  overflow: visible;
 
   background:
     linear-gradient(#fff, #fff) padding-box,
@@ -295,12 +301,12 @@
 
 .rec-btn{
   height:40px; width:40px; border:none; border-radius:50%;
-  display:grid; place-items:center; cursor:pointer; background:#f8fafc;
+  display:grid; place-items:center; cursor:pointer; background:#ffffff;
   font-weight:600; font-size:18px; line-height:1;
 }
-.rec-btn:hover{ background:#eef2ff }
-.rec-x{ color:#ef4444 }
-.rec-ok{ color:#10b981 }
+.rec-btn:hover{ background:#ffffff }
+.rec-x{ color:#0289ff }
+.rec-ok{ color:#0289ff }
 
 .rec-body{
   display:grid; grid-template-columns: auto 1fr; align-items:center; gap:10px;
@@ -317,7 +323,7 @@
 }
 .rec-timer{
   font-variant-numeric: tabular-nums;
-  font-size:14px; color:#ef4444;
+  font-size:14px; color:#f40303;
 }
 
 .rec-wave{
@@ -325,7 +331,7 @@
   min-width:90px; max-width:120px;
 }
 .rec-wave span{
-  width:3px; height:8px; border-radius:2px; background:#94a3b8;
+  width:3px; height:8px; border-radius:2px; background:#008cff;
   animation: wave 1s ease-in-out infinite;
 }
 .rec-wave span:nth-child(3n){ animation-delay:.1s }
@@ -358,4 +364,185 @@
 @media (max-width: 420px){
   .rec-wave{ min-width:70px; max-width:90px }
   .rec-btn{ height:36px; width:36px; font-size:16px }
+}
+
+
+
+
+/* =========================
+   Attach popover (from +)
+   ========================= */
+.attach-anchor{ position: relative; }          /* wrapper around the + button */
+
+/* click-away layer so a click outside closes the menu */
+.attach-backdrop{
+  position: fixed; inset: 0; background: transparent; z-index: 40;
+}
+
+/* the menu card */
+.attach-menu{
+  position: absolute;
+  left: 0; bottom: 64px;                      /* sits above the + button */
+  width: min(320px, 86vw);
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.14);
+  z-index: 50;
+}
+
+/* tiny arrow pointing to the + button */
+.attach-menu::before{
+  content:"";
+  position: absolute; left: 18px; bottom: -8px;
+  border: 8px solid transparent;
+  border-top-color: #fff;
+  filter: drop-shadow(0 -1px 0 #e5e7eb);
+}
+
+.att-item{
+  width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px; border: 0; background: #fff; border-radius: 10px;
+  text-align: left; cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+}
+.att-item:hover{ background: #f8fafc; }
+.att-item:active{ transform: translateY(1px); }
+
+.att-ico{ width: 26px; height: 26px; object-fit: contain; }
+.att-text{ display: grid; gap: 2px; }
+.att-title{ font-size: 14px; font-weight: 600; color: #0f172a; }
+.att-sub{ font-size: 12px; color: #64748b; }
+
+/* keep menu tidy on very small phones */
+@media (max-width: 420px){
+  .attach-menu{ width: min(300px, 92vw); }
+  .att-sub{ font-size: 11px; }
+}
+
+
+
+
+.attach-status{
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center;
+  margin: 6px 0 10px;
+}
+
+.pill{
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 999px;
+  font-size: 12px; color: #0f172a;
+  background:
+    linear-gradient(#fff,#fff) padding-box,
+    linear-gradient(90deg,#3b5bfd,#00d2ff) border-box;  /* same blue outline style */
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.pill-ico{ width: 16px; height: 16px; object-fit: contain; }
+
+.pill-x{
+  all: unset;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  color: #64748b; font-weight: 700; line-height: 1;
+}
+.pill-x:hover{ background: #eef2ff; color: #1d4ed8; }
+
+
+/* Make Lottie fill avatar circle the same way the <img> did */
+.avatar .lottie-avatar {
+  width: 95%;
+  height: 95%;
+  display: block;
+  pointer-events: none;     /* not clickable */
+}
+
+/* (Optional) ensure inner svg scales fully */
+.avatar .lottie-avatar svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+
+
+
+/* ======= Attachment Previews (above composer) ======= */
+.previews{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  justify-content:flex-start;   /* start align vertically (column) */
+  align-items:stretch;          /* take full width so children can left-align */
+  margin: 6px 0 10px;
+}
+
+/* Strips align from the start (left) and wrap */
+.img-strip,
+.doc-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-start;   /* <-- left align */
+}
+
+/* image thumbnails */
+.thumb{
+  position: relative;           /* for the close button */
+  width:64px; height:64px; border-radius:12px; overflow:hidden;
+  background:#fff; border:1px solid #e5e7eb;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+}
+.thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+/* close button on each image */
+.thumb-x{
+  position:absolute; top:4px; right:4px;
+  width:18px; height:18px; border-radius:50%;
+  display:grid; place-items:center;
+  border:0; cursor:pointer;
+  background:#ffffff;
+  color:#64748b; font-weight:700; line-height:1;
+  box-shadow:0 1px 4px rgba(0,0,0,.18);
+}
+.thumb-x:hover{ background:#eef2ff; color:#1d4ed8; }
+.thumb-x:focus-visible{ outline:2px solid #3b5bfd; outline-offset:1px; }
+
+/* document name chips (same visual style as your pill/chip) */
+.doc-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px; font-size:12px; color:#0f172a;
+  background:
+    linear-gradient(#fff,#fff) padding-box,
+    linear-gradient(90deg,#3b5bfd,#00d2ff) border-box;
+  border:2px solid transparent;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  max-width: 360px;  /* a bit wider for names */
+}
+
+/* keep the filename tidy with ellipsis */
+.doc-name{
+  max-width: 240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.doc-size{
+  color:#64748b;
+}
+
+/* per-document close button */
+.doc-x{
+  all: unset;
+  width:18px; height:18px; border-radius:50%;
+  display:grid; place-items:center; cursor:pointer;
+  color:#64748b; font-weight:700; line-height:1;
+  margin-left:4px;
+}
+.doc-x:hover{ background:#eef2ff; color:#1d4ed8; }
+.doc-x:focus-visible{ outline:2px solid #3b5bfd; outline-offset:2px; }
+
+/* small screens */
+@media (max-width: 420px){
+  .doc-name{ max-width: 180px; }
 }

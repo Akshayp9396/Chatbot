@@ -1,44 +1,3 @@
-// import { NgModule } from '@angular/core';
-// import { BrowserModule } from '@angular/platform-browser';
-
-// // import { AppRoutingModule } from './app-routing.module';
-// import { AppComponent } from './app.component';
-
-
-// @NgModule({
-//   declarations: [
-//     AppComponent,
-
-//   ],
-//   imports: [
-//     BrowserModule,
-//     // AppRoutingModule
-//   ],
-//   providers: [],
-//   bootstrap: [AppComponent]
-// })
-// export class AppModule { }
-
-
-// import { NgModule } from '@angular/core';
-// import { BrowserModule } from '@angular/platform-browser';
-// import { FormsModule } from '@angular/forms';            // <-- add this
-
-// import { AppRoutingModule } from './app-routing.module';
-// import { AppComponent } from './app.component';
-
-// @NgModule({
-//   declarations: [AppComponent],
-//   imports: [
-//     BrowserModule,
-//     FormsModule,                                        // <-- and this
-//     AppRoutingModule                                   // (ok to keep even if unused)
-//   ],
-//   providers: [],
-//   bootstrap: [AppComponent]
-// })
-// export class AppModule {}
-
 
 
 import { NgModule } from '@angular/core';
@@ -49,6 +8,14 @@ import { HttpClientModule } from '@angular/common/http';  // <-- add this
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 
+// Lottie
+import { LottieModule } from 'ngx-lottie';
+import player from 'lottie-web';
+
+export function playerFactory() {
+  return player;
+}
+
 @NgModule({
   declarations: [AppComponent],
   imports: [
@@ -56,9 +23,13 @@ import { AppComponent } from './app.component';
     FormsModule,
     HttpClientModule,   // <-- add this
     // AppRoutingModule    // ok to keep even if unused
+  
+     LottieModule.forRoot({ player: playerFactory })
   ],
   bootstrap: [AppComponent]
 })
 export class AppModule {}
+
+
 
 

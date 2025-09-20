@@ -23,18 +23,26 @@
   <main class="canvas" #canvas>
     <div class="msgs">
       <ng-container *ngFor="let m of messages">
-        <!-- BOT is typing (from messages: sender === 'typing') -->
-        <div class="row" *ngIf="m.sender === 'typing'">
+
+        <!-- BOT is typing -->
+        <div class="row" *ngIf="m.sender === 'typing'" style="display:flex;align-items:center;gap:8px;">
           <div class="avatar talking">
-            <img src="assets/icons/icon.svg" alt="" aria-hidden="true" />
+            <ng-lottie [options]="botTypingOpts" class="lottie-avatar" aria-hidden="true"></ng-lottie>
           </div>
-          <div class="bubble bot typing"><span></span><span></span><span></span></div>
+
+          <div class="bubble bot typing" style="background:transparent;border:none;padding:0;box-shadow:none;display:flex;align-items:center;">
+            <ng-lottie
+              [options]="{ path: 'assets/lottie/user.json', autoplay: true, loop: true, renderer: 'svg' }"
+              style="width:104px;height:124px;display:block;line-height:0;"
+              aria-hidden="true">
+            </ng-lottie>
+          </div>
         </div>
 
         <!-- BOT: avatar | (bubble + time below, no tick) -->
-        <div class="row" *ngIf="m.sender === 'bot'">
+        <div class="row" *ngIf="m.sender === 'bot'" style="display:flex;align-items:center;gap:8px;">
           <div class="avatar">
-            <img src="assets/icons/icon.svg" alt="" aria-hidden="true" />
+            <ng-lottie [options]="botAvatarOpts" class="lottie-avatar" aria-hidden="true"></ng-lottie>
           </div>
           <div class="stack left">
             <div class="bubble bot" [innerText]="m.text"></div>
@@ -43,39 +51,42 @@
         </div>
 
         <!-- USER: (bubble + time+tick below) | avatar -->
-        <div class="row me" *ngIf="m.sender === 'user'">
+        <div class="row me" *ngIf="m.sender === 'user'" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
           <div class="stack right">
             <div class="bubble me" [innerText]="m.text"></div>
             <div class="meta-line right">
               {{ m.createdAt | date:'shortTime' }}
               <span class="tick" aria-hidden="true">✓</span>
-              <!-- Or use an SVG icon:
-              <img class="tick-img" src="assets/icons/tick.svg" alt="">
-              -->
+              <!-- <img class="tick-img" src="assets/icons/tick.svg" alt=""> -->
             </div>
           </div>
           <div class="avatar me">
-            <img src="assets/icons/icon.svg" alt="" aria-hidden="true" />
+            <img src="assets/icons/user.png" alt="" aria-hidden="true" />
           </div>
         </div>
 
         <!-- System chip (optional) -->
-        <div class="row" *ngIf="m.sender === 'system'">
+        <div class="row" *ngIf="m.sender === 'system'" style="display:flex;align-items:center;gap:8px;">
           <div class="system" [innerText]="m.text"></div>
         </div>
       </ng-container>
 
       <!-- USER is actively typing (right side, outside *ngFor) -->
-      <div class="row me" *ngIf="userTyping">
+      <div class="row me" *ngIf="userTyping" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
         <div class="stack right">
-          <div class="bubble me typing"><span></span><span></span><span></span></div>
+          <div class="bubble me typing" style="background:transparent;border:none;padding:0;box-shadow:none;display:flex;align-items:center;gap:6px;">
+            <span></span><span></span><span></span>
+          </div>
         </div>
         <div class="avatar me talking">
-          <img src="assets/icons/icon.svg" alt="" aria-hidden="true" />
+          <img src="assets/icons/user.png" alt="" aria-hidden="true" />
         </div>
       </div>
     </div>
   </main>
+
+
+  
 
   <!-- Bottom: rounded composer -->
   <footer class="composer-wrap">
@@ -86,63 +97,136 @@
       <button class="chip" (click)="sendQuick('FAQs')">🙋‍♂️ <span>FAQs</span></button>
     </div>
 
-    <div class="composer">
-      <!-- Attach -->
+    <!-- Status chips for attachments / TTS -->
+    <div class="attach-status" *ngIf="imgCount || docCount || ttsEnabled">
+      <!-- <div class="pill" *ngIf="imgCount">
+        <img class="pill-ico" src="assets/icons/photo.svg" alt="" />
+        <span>{{ imgCount }} image(s) selected</span>
+        <button class="pill-x" (click)="clearImages()" aria-label="Remove images">×</button>
+      </div> -->
+      <!-- <div class="pill" *ngIf="docCount">
+        <img class="pill-ico" src="assets/icons/doc.svg" alt="" />
+        <span>{{ docCount }} document(s) selected</span>
+        <button class="pill-x" (click)="clearDocs()" aria-label="Remove documents">×</button>
+      </div> -->
+      <div class="pill" *ngIf="ttsEnabled">
+        <img class="pill-ico" src="assets/icons/speaker.svg" alt="" />
+        <span>Text → Speech enabled</span>
+        <button class="pill-x" (click)="disableTTS()" aria-label="Disable TTS">×</button>
+      </div>
+    </div>
+
+
+<!-- Inline previews for images & documents (above the composer) -->
+<div class="previews" *ngIf="imagePreviews.length || docPreviews.length">
+  <!-- Image thumbnails -->
+  <div class="img-strip" *ngIf="imagePreviews.length">
+    <div class="thumb" *ngFor="let p of imagePreviews; let i = index" [title]="p.name">
+      <img [src]="p.url" [alt]="p.name" />
       <button
-        class="circle-btn attach"
-        aria-label="Add attachment"
-        title="Add attachment"
-        (click)="openFilePicker()">
-        +
+        class="thumb-x"
+        (click)="removeImage(i)"
+        aria-label="Remove image">
+        ×
       </button>
+    </div>
+  </div>
 
-      <!-- Text input -->
-      <!-- <input
-        type="text"
-        [(ngModel)]="text"
-        (input)="onUserTyping()"
-        (blur)="stopUserTyping(true)"
-        (keyup.enter)="send()"
-        placeholder="Add a message..."
-        aria-label="Message input" /> -->
+  <!-- Document name chips -->
+  <div class="doc-strip" *ngIf="docPreviews.length">
+    <div class="doc-chip" *ngFor="let d of docPreviews; let i = index" [title]="d.name">
+      <img class="pill-ico" src="assets/icons/doc.svg" alt="" />
+      <span class="doc-name">{{ d.name }}</span>
+      <span class="doc-size">· {{ d.sizeKB }} KB</span>
+      <button
+        class="doc-x"
+        (click)="removeDoc(i)"
+        aria-label="Remove document">
+        ×
+      </button>
+    </div>
+  </div>
+</div>
 
+    <div class="composer">
+      <!-- Attach (+) with popover menu -->
+      <div class="attach-anchor">
+        <button
+          class="circle-btn attach"
+          aria-label="Add attachment"
+          title="Add attachment"
+          (click)="$event.stopPropagation(); toggleAttachMenu()">
+          +
+        </button>
 
-        <!-- Input OR Recording chip -->
-        <ng-container *ngIf="!isRecUI; else recordingTpl">
-          <input
-            type="text"
-            [(ngModel)]="text"
-            (input)="onUserTyping()"
-            (blur)="stopUserTyping(true)"
-            (keyup.enter)="send()"
-            placeholder="Add a message..."
-            aria-label="Message input" />
-        </ng-container>
+        <!-- Backdrop for the small menu -->
+        <div class="attach-backdrop" *ngIf="showAttachMenu" (click)="showAttachMenu=false"></div>
 
-        <ng-template #recordingTpl>
-          <div class="rec-chip" role="group" aria-label="Recording controls">
-            <button class="rec-btn rec-x" (click)="cancelRecording()" aria-label="Cancel recording"> × </button>
+        <!-- Popover menu -->
+        <div class="attach-menu" *ngIf="showAttachMenu" (click)="$event.stopPropagation()">
+          <button class="att-item" (click)="pickImages()">
+            <img src="assets/icons/image-.png" alt="" class="att-ico">
+            <div class="att-text">
+              <div class="att-title">Image (OCR)</div>
+              <div class="att-sub">Upload photos; we’ll read the text</div>
+            </div>
+          </button>
 
-            <div class="rec-body">
-              <div class="rec-left">
-                <span class="rec-dot" aria-hidden="true"></span>
-                <span class="rec-timer">{{ recElapsedLabel }}</span>
-              </div>
+          <button class="att-item" (click)="pickDocs()">
+            <img src="assets/icons/document (1).png" alt="" class="att-ico">
+            <div class="att-text">
+              <div class="att-title">Add document to text</div>
+              <div class="att-sub">PDF, DOCX, TXT…</div>
+            </div>
+          </button>
 
-              <div class="rec-wave" aria-hidden="true">
-                <span *ngFor="let _ of waveBars"></span>
-              </div>
+          <button class="att-item" (click)="toggleTTS()">
+            <img src="assets/icons/stt.png" alt="" class="att-ico">
+            <div class="att-text">
+              <div class="att-title">Text → Speech</div>
+              <div class="att-sub">Type text; get audio reply</div>
+            </div>
+          </button>
+        </div>
+      </div>
 
-              <div class="rec-text" [class.empty]="!interimTranscript && !finalTranscript">
-                {{ interimTranscript || finalTranscript || 'Listening…' }}
-              </div>
+      <!-- Input OR Recording chip -->
+      <ng-container *ngIf="!isRecUI; else recordingTpl">
+        <input
+          type="text"
+          [(ngModel)]="text"
+          (input)="onUserTyping()"
+          (blur)="stopUserTyping(true)"
+          (keyup.enter)="send()"
+          placeholder="Add a message..."
+          aria-label="Message input" />
+      </ng-container>
+
+      <ng-template #recordingTpl>
+        <div class="rec-chip" role="group" aria-label="Recording controls">
+          <button class="rec-btn rec-x" (click)="cancelRecording()" aria-label="Cancel recording"> × </button>
+
+          <div class="rec-body">
+            <div class="rec-left">
+              <span class="rec-dot" aria-hidden="true"></span>
+              <span class="rec-timer">{{ recElapsedLabel }}</span>
             </div>
 
-            <button class="rec-btn rec-ok" (click)="confirmRecording()" aria-label="Confirm transcription">✓</button>
-          </div>
-        </ng-template>
+            <div class="rec-wave" aria-hidden="true">
+              <span *ngFor="let _ of waveBars"></span>
+            </div>
 
-        <!-- Mic -->
+            <div class="rec-text" [class.empty]="!interimTranscript && !finalTranscript">
+              {{ interimTranscript || finalTranscript || 'Listening…' }}
+            </div>
+          </div>
+
+          <button class="rec-btn rec-ok" (click)="confirmRecording()" aria-label="Confirm transcription">✓</button>
+        </div>
+      </ng-template>
+
+      <!-- Mic & Send (hidden when isRecUI=true) -->
+      <ng-container *ngIf="!isRecUI">
         <button
           class="circle-btn mic"
           [class.rec]="isRecording"
@@ -152,30 +236,18 @@
           <img src="assets/icons/mic.svg" alt="mic" />
         </button>
 
-        <!-- Send -->
         <button
           class="send-btn"
           (click)="send()"
-          [disabled]="!text.trim()"   
+          [disabled]="!text.trim()"
           title="Send">
           <img src="assets/icons/send.svg" alt="Send" />
         </button>
+      </ng-container>
 
-    
-      <!-- hidden file input -->
-      <input
-        #fileInput
-        type="file"
-        class="hidden"
-        (change)="onFiles($event)"
-        multiple
-        accept="image/*,.pdf,.doc,.docx,.txt" />
+      <!-- hidden file inputs (separate) -->
+      <input #imgInput type="file" class="hidden" accept="image/*" multiple (change)="onImagesSelected($event)" />
+      <input #docInput type="file" class="hidden" accept=".pdf,.doc,.docx,.txt,.md" multiple (change)="onDocsSelected($event)" />
     </div>
-
-    <!-- Helper row (optional) -->
-    <!-- <div class="helper" *ngIf="attachCount || lastAudioUrl">
-      <span *ngIf="attachCount">{{ attachCount }} file(s) selected</span>
-      <a *ngIf="lastAudioUrl" [href]="lastAudioUrl" target="_blank" rel="noopener">Preview last recording</a>
-    </div> -->
   </footer>
 </div>
