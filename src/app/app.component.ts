@@ -4,11 +4,24 @@ import type { AnimationItem } from 'lottie-web';
 
 type Sender = 'user' | 'bot' | 'system' | 'typing';
 
+interface MsgImage {
+  url: string;          // used by <img> and openImage()
+  thumbUrl?: string;    // if you later add separate thumb generation
+  name?: string;
+  sizeKB?: number;
+}
+interface MsgDoc {
+  url: string;          // href for open/download
+  name: string;
+  sizeKB?: number;
+}
 interface Message {
   id: string;
-  text: string;
+  text?: string | null;
   sender: Sender;
   createdAt: Date;
+  images?: MsgImage[];
+  docs?: MsgDoc[];
 }
 
 declare global {
@@ -31,7 +44,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   // composer state
   text = '';
-  attachCount = 0;
+  attachCount = 0; // kept for compatibility (not used for logic anymore)
 
   // chat state
   messages: Message[] = [
@@ -50,13 +63,16 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   // ===== Attach popover + status chips =====
   isAttachOpen = false;
   pendingPick: 'images' | 'docs' | null = null;
+
+  // raw selected files (not strictly needed for UI now; kept if you upload later)
   imagesSelected: File[] = [];
   docsSelected: File[] = [];
+
   ttsEnabled = false;
 
-  // ===== Attachment previews (shown above composer) =====
+  // ===== Attachment previews (shown above composer; cleared after send) =====
   imagePreviews: { url: string; name: string; sizeKB: number }[] = [];
-  docPreviews:   { name: string; ext: string; sizeKB: number }[] = [];
+  docPreviews:   { url: string; name: string; ext: string; sizeKB: number }[] = [];
 
   // Audio recording + STT
   isRecording = false;              // for mic button visual
@@ -80,11 +96,42 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   // simple bars for the fake wave
   waveBars = new Array(14);
 
+  chatOpen = true;
+
   ngAfterViewInit(): void { this.scrollCanvasToBottom(); }
 
   ngOnDestroy(): void {
     // Clean up any created object URLs
     this.revokeImagePreviews();
+    this.revokeDocPreviews();
+    if (this.lastAudioUrl) { try { URL.revokeObjectURL(this.lastAudioUrl); } catch {} }
+  }
+
+  onClose(): void { this.chatOpen = false; }
+
+  /* ===== Lottie options ===== */
+  botAvatarOpts: AnimationOptions = {
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true
+  };
+  botTypingOpts: AnimationOptions = {
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true
+  };
+  brandLottieOpts: AnimationOptions = {
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true
+  };
+  onBrandAnimCreated(anim: AnimationItem) {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      anim.pause();
+    }
   }
 
   /* ===== Header actions ===== */
@@ -107,67 +154,35 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     // Reset previews too
     this.revokeImagePreviews();
-    this.docPreviews = [];
+    this.revokeDocPreviews();
 
     this.scrollCanvasToBottom();
   }
-
-  chatOpen = true;
-  onClose(): void { this.chatOpen = false; }
-
-  /* ===== Lottie options for bot avatar + typing indicator ===== */
-  botAvatarOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json',
-    renderer: 'svg',
-    autoplay: true,
-    loop: true
-  };
-
-  botTypingOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json',
-    renderer: 'svg',
-    autoplay: true,
-    loop: true
-  };
 
   /* ===== Attach popover actions ===== */
   toggleAttachMenu(): void { this.isAttachOpen = !this.isAttachOpen; }
   closeAttachMenu(): void { this.isAttachOpen = false; }
 
   pickImages(): void {
-    // Limit selection to images and trigger the hidden input
     this.pendingPick = 'images';
     if (this.imgInputRef?.nativeElement) {
       this.imgInputRef.nativeElement.accept = 'image/*';
       this.imgInputRef.nativeElement.click();
     }
-    // Popover will auto-close in onImagesSelected()
   }
-
   pickDocs(): void {
-    // Limit selection to common document types and trigger the hidden input
     this.pendingPick = 'docs';
     if (this.docInputRef?.nativeElement) {
       this.docInputRef.nativeElement.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx';
       this.docInputRef.nativeElement.click();
     }
-    // Popover will auto-close in onDocsSelected()
   }
 
-  enableTTS(): void {
-    this.ttsEnabled = true;
-    this.closeAttachMenu();
-  }
+  enableTTS(): void { this.ttsEnabled = true; this.closeAttachMenu(); }
   disableTTS(): void { this.ttsEnabled = false; }
 
-  clearImages(): void {
-    this.revokeImagePreviews();
-    this.imagesSelected = [];
-  }
-  clearDocs(): void {
-    this.docsSelected = [];
-    this.docPreviews = [];
-  }
+  clearImages(): void { this.revokeImagePreviews(); this.imagesSelected = []; }
+  clearDocs(): void { this.revokeDocPreviews(); this.docsSelected = []; }
 
   /* ===== File selection handlers (previews + auto close) ===== */
   public onImagesSelected(e: Event): void {
@@ -186,11 +201,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const files = Array.from(input.files ?? []);
 
     this.docsSelected = files;
-    this.docPreviews = files.map(f => ({
-      name: f.name,
-      ext: (f.name.split('.').pop() || '').toLowerCase(),
-      sizeKB: Math.max(1, Math.round(f.size / 1024))
-    }));
+    this.buildDocPreviews(files);       // create object-URLs for open/download
 
     this.isAttachOpen = false;          // auto-close popover
     input.value = '';
@@ -205,12 +216,28 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       sizeKB: Math.max(1, Math.round(f.size / 1024))
     }));
   }
-
   private revokeImagePreviews() {
     for (const p of this.imagePreviews) {
       try { URL.revokeObjectURL(p.url); } catch {}
     }
     this.imagePreviews = [];
+  }
+
+  /* ===== Document preview helpers ===== */
+  private buildDocPreviews(files: File[]) {
+    this.revokeDocPreviews(); // clear old URLs first
+    this.docPreviews = files.map(f => ({
+      url: URL.createObjectURL(f),      // so user can open/download immediately
+      name: f.name,
+      ext: (f.name.split('.').pop() || '').toLowerCase(),
+      sizeKB: Math.max(1, Math.round(f.size / 1024))
+    }));
+  }
+  private revokeDocPreviews() {
+    for (const d of this.docPreviews) {
+      try { URL.revokeObjectURL(d.url); } catch {}
+    }
+    this.docPreviews = [];
   }
 
   /* ===== Mic button ===== */
@@ -309,19 +336,19 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.recElapsedMs = 0;
   }
 
-
   removeImage(idx: number): void {
-  // revoke object URL and remove from both arrays
-  const p = this.imagePreviews[idx];
-  try { URL.revokeObjectURL(p.url); } catch {}
-  this.imagePreviews.splice(idx, 1);
-  this.imagesSelected.splice(idx, 1);
-}
+    const p = this.imagePreviews[idx];
+    try { URL.revokeObjectURL(p.url); } catch {}
+    this.imagePreviews.splice(idx, 1);
+    this.imagesSelected.splice(idx, 1);
+  }
+  removeDoc(idx: number): void {
+    const d = this.docPreviews[idx];
+    try { URL.revokeObjectURL(d.url); } catch {}
+    this.docPreviews.splice(idx, 1);
+    this.docsSelected.splice(idx, 1);
+  }
 
-removeDoc(idx: number): void {
-  this.docPreviews.splice(idx, 1);
-  this.docsSelected.splice(idx, 1);
-}
   /* Timer label like 0:07, 1:23 */
   get recElapsedLabel(): string {
     const s = Math.floor(this.recElapsedMs / 1000);
@@ -335,6 +362,7 @@ removeDoc(idx: number): void {
     const msg = (raw || '').trim();
     if (!msg) return;
 
+    // push a single user message (no attachments)
     this.push({ id: this.uuid(), text: msg, sender: 'user', createdAt: new Date() });
 
     this.showBotTyping();
@@ -361,81 +389,92 @@ removeDoc(idx: number): void {
     if (immediate) this.userTyping = false;
   }
 
-  /* ===== Send flow ===== */
+  /* ===== Send flow (text + attachments into ONE message) ===== */
   send() {
-    const msg = this.text.trim();
-    if (!msg && this.attachCount === 0 && this.imagesSelected.length === 0 && this.docsSelected.length === 0) return;
+    const trimmed = this.text.trim();
+
+    const hasImages = this.imagePreviews.length > 0;
+    const hasDocs   = this.docPreviews.length   > 0;
+    const hasText   = !!trimmed;
+
+    if (!hasText && !hasImages && !hasDocs) return;
 
     if (this.isRecUI) this.cancelRecording();
     this.stopUserTyping(true);
 
-    if (msg) {
-      this.push({ id: this.uuid(), text: msg, sender: 'user', createdAt: new Date() });
-    }
+    const images: MsgImage[] = hasImages
+      ? this.imagePreviews.map(p => ({ url: p.url, thumbUrl: p.url, name: p.name, sizeKB: p.sizeKB }))
+      : [];
 
-    // (optional) system notes for selected files
-    if (this.imagesSelected.length > 0) {
-      this.push({ id: this.uuid(), text: `🖼️ ${this.imagesSelected.length} image(s) attached`, sender: 'system', createdAt: new Date() });
-    }
-    if (this.docsSelected.length > 0) {
-      this.push({ id: this.uuid(), text: `📄 ${this.docsSelected.length} document(s) attached`, sender: 'system', createdAt: new Date() });
-    }
+    const docs: MsgDoc[] = hasDocs
+      ? this.docPreviews.map(d => ({ url: d.url, name: d.name, sizeKB: d.sizeKB }))
+      : [];
 
-    // clear input and legacy attach count
+    // Single user message with text + attachments
+    this.push({
+      id: this.uuid(),
+      text: hasText ? trimmed : null,
+      images: images.length ? images : undefined,
+      docs: docs.length ? docs : undefined,
+      sender: 'user',
+      createdAt: new Date()
+    });
+
+    // Clear input & previews (temporary area disappears)
     this.text = '';
     this.attachCount = 0;
+    this.imagesSelected = [];
+    this.docsSelected = [];
+    this.isAttachOpen = false;
 
+    // IMPORTANT: revoke previews AFTER message push? We should not revoke
+    // the URLs used by the just-pushed message. So do NOT revoke those here.
+    // Instead, create NEW object URLs for previews next time.
+    // To keep things simple, we WON'T revoke the ones we just used in the sent message.
+    // We only clear arrays so the preview section hides.
+    this.imagePreviews = [];
+    this.docPreviews = [];
+
+    // Bot reply (demo)
     this.showBotTyping();
     setTimeout(() => {
       this.hideBotTyping();
-      const reply = this.generateReply(msg);
+      const reply = this.generateReply(trimmed);
       this.push({ id: this.uuid(), text: reply, sender: 'bot', createdAt: new Date() });
 
-      // Speak the reply if TTS mode is enabled
       if (this.ttsEnabled && 'speechSynthesis' in window) {
         const u = new SpeechSynthesisUtterance(reply);
         u.lang = 'en-IN';
         window.speechSynthesis.speak(u);
       }
-
-      // you can clear selected files after sending if desired:
-      // this.imagesSelected = [];
-      // this.docsSelected = [];
-      // this.revokeImagePreviews();
-      // this.docPreviews = [];
     }, 900);
   }
 
-  // counts used by template chips
-  public get imgCount(): number { return this.imagesSelected.length; }
-  public get docCount(): number { return this.docsSelected.length; }
+  /* counts (kept if needed elsewhere) */
+  public get imgCount(): number { return this.imagePreviews.length; }
+  public get docCount(): number { return this.docPreviews.length; }
 
-  // alias for the attach popover boolean (used by *ngIf in the template)
+  /* alias used by template */
   public get showAttachMenu(): boolean { return this.isAttachOpen; }
   public set showAttachMenu(v: boolean) { this.isAttachOpen = v; }
 
-  // alias for TTS toggle button in the popover
-  public toggleTTS(): void {
-    this.ttsEnabled = !this.ttsEnabled;
-  }
+  /* alias for TTS toggle in popover */
+  // public toggleTTS(): void { this.ttsEnabled = !this.ttsEnabled; }
 
-  /* ===== Helpers ===== */
+  /* View helpers */
   private push(m: Message) {
     this.messages = [...this.messages, m];
     this.scrollCanvasToBottom();
   }
-
   private showBotTyping() {
     if (!this.messages.some(x => x.sender === 'typing')) {
       this.messages = [...this.messages, { id: 'typing', text: 'typing', sender: 'typing', createdAt: new Date() }];
     }
     this.scrollCanvasToBottom();
   }
-
   private hideBotTyping() {
     this.messages = this.messages.filter(m => m.sender !== 'typing');
   }
-
   private scrollCanvasToBottom() {
     setTimeout(() => {
       const el = this.canvasRef?.nativeElement;
@@ -443,13 +482,19 @@ removeDoc(idx: number): void {
     });
   }
 
+  /* Image open handler for thumbnail buttons */
+  openImage(img: MsgImage) {
+    try { window.open(img.url, '_blank'); } catch {}
+  }
+
+  /* demo reply generator */
   private generateReply(q: string): string {
     const t = (q || '').toLowerCase();
     if (t.includes('price') || t.includes('pricing')) return 'Starter ₹0, Pro ₹1,999/mo, Business ₹6,999/mo.';
     if (t.includes('refund')) return 'Refunds within 7 days if unused; otherwise prorated.';
     if (t.includes('help') || t.includes('support')) return 'Sure—tell me what you’re stuck on.';
     if (t.includes('hello') || t.includes('hi')) return 'Hi! 👋 How can I assist you today?';
-    return "Got it. Could you share a bit more detail?";
+    return 'Got it. Could you share a bit more detail?';
   }
 
   private uuid(): string {

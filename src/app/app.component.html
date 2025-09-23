@@ -1,36 +1,69 @@
 <div class="shell" *ngIf="chatOpen">
-  <!-- Top gradient bar -->
+
+  <!-- ==== Top Bar ==== -->
+
   <header class="topbar">
     <div class="brand">
-      <img src="assets/icons/icon.svg" alt="" class="logo" aria-hidden="true" />
+      <!-- <img src="assets/icons/icon.svg" alt="" class="logo" aria-hidden="true" /> -->
+      <ng-lottie
+        class="logo"
+        [options]="brandLottieOpts"
+        (animationCreated)="onBrandAnimCreated($event)">
+      </ng-lottie>
+
+      <!-- Title + Presence -->
       <div class="titles">
         <div class="title">Chat With Us!</div>
-        <div class="online"><span class="dot"></span> Online</div>
+        <div class="online">
+          <span class="dot"></span>
+          Online
+        </div>
       </div>
     </div>
 
+    <!-- Header Actions -->
     <div class="actions">
-      <button class="icon-btn" aria-label="Refresh" title="Refresh" (click)="onRefresh()">
-        <img src="assets/icons/refresh.svg" class="ico" alt="" />
+      <button
+        class="icon-btn"
+        aria-label="Refresh"
+        title="Refresh"
+        (click)="onRefresh()">
+        <img class="ico" src="assets/icons/refresh.svg" alt="" />
       </button>
-      <button class="icon-btn" aria-label="Close chat" title="Close" (click)="onClose()">
-        <img src="assets/icons/Cross.svg" class="ico" alt="" />
+
+      <button
+        class="icon-btn"
+        aria-label="Close chat"
+        title="Close"
+        (click)="onClose()">
+        <img class="ico" src="assets/icons/Cross.svg" alt="" />
       </button>
     </div>
   </header>
 
-  <!-- Messages canvas -->
+  <!-- =========================
+       Messages Canvas
+       ========================= -->
   <main class="canvas" #canvas>
     <div class="msgs">
       <ng-container *ngFor="let m of messages">
 
         <!-- BOT is typing -->
-        <div class="row" *ngIf="m.sender === 'typing'" style="display:flex;align-items:center;gap:8px;">
+        <div
+          class="row"
+          *ngIf="m.sender === 'typing'"
+          style="display:flex;align-items:center;gap:8px;">
           <div class="avatar talking">
-            <ng-lottie [options]="botTypingOpts" class="lottie-avatar" aria-hidden="true"></ng-lottie>
+            <ng-lottie
+              class="lottie-avatar"
+              [options]="botTypingOpts"
+              aria-hidden="true">
+            </ng-lottie>
           </div>
 
-          <div class="bubble bot typing" style="background:transparent;border:none;padding:0;box-shadow:none;display:flex;align-items:center;">
+          <div
+            class="bubble bot typing"
+            style="background:transparent;border:none;padding:0;box-shadow:none;display:flex;align-items:center;">
             <ng-lottie
               [options]="{ path: 'assets/lottie/user.json', autoplay: true, loop: true, renderer: 'svg' }"
               style="width:104px;height:124px;display:block;line-height:0;"
@@ -39,45 +72,155 @@
           </div>
         </div>
 
-        <!-- BOT: avatar | (bubble + time below, no tick) -->
-        <div class="row" *ngIf="m.sender === 'bot'" style="display:flex;align-items:center;gap:8px;">
+        <!-- BOT message: avatar + bubble + timestamp -->
+        <div
+          class="row"
+          *ngIf="m.sender === 'bot'"
+          style="display:flex;align-items:center;gap:8px;">
           <div class="avatar">
-            <ng-lottie [options]="botAvatarOpts" class="lottie-avatar" aria-hidden="true"></ng-lottie>
+            <ng-lottie
+              class="lottie-avatar"
+              [options]="botAvatarOpts"
+              aria-hidden="true">
+            </ng-lottie>
           </div>
+
           <div class="stack left">
-            <div class="bubble bot" [innerText]="m.text"></div>
-            <div class="meta-line left">{{ m.createdAt | date:'shortTime' }}</div>
+            <div class="bubble bot">
+
+              <!-- Bot text -->
+              <div
+                class="msg-text"
+                *ngIf="m.text"
+                [innerText]="m.text">
+              </div>
+
+              <!-- Bot images -->
+              <div class="msg-images" *ngIf="m.images?.length">
+                <button
+                  class="img"
+                  type="button"
+                  *ngFor="let img of m.images"
+                  (click)="openImage(img)"
+                  [title]="img.name || 'Image'">
+                  <img
+                    [src]="img.thumbUrl || img.url"
+                    [alt]="img.name || 'Image'" />
+                </button>
+              </div>
+
+              <!-- Bot docs -->
+              <div class="msg-docs" *ngIf="m.docs?.length">
+                <a
+                  class="doc-card"
+                  *ngFor="let d of m.docs"
+                  [href]="d.url"
+                  target="_blank"
+                  rel="noopener"
+                  [title]="d.name">
+                  <img class="doc-ico" src="assets/icons/doc.svg" alt="" aria-hidden="true" />
+                  <span class="doc-title">{{ d.name }}</span>
+                  <span class="doc-size" *ngIf="d.sizeKB">· {{ d.sizeKB }} KB</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Bot timestamp -->
+            <div class="meta-line left">
+              {{ m.createdAt | date:'shortTime' }}
+            </div>
           </div>
         </div>
 
-        <!-- USER: (bubble + time+tick below) | avatar -->
-        <div class="row me" *ngIf="m.sender === 'user'" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+        <!-- USER message: bubble + timestamp + tick + avatar -->
+        <div
+          class="row me"
+          *ngIf="m.sender === 'user'"
+          style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
           <div class="stack right">
-            <div class="bubble me" [innerText]="m.text"></div>
+            <div class="bubble me">
+
+              <!-- User text -->
+              <div
+                class="msg-text"
+                *ngIf="m.text"
+                [innerText]="m.text">
+              </div>
+
+              <!-- User images -->
+              <div
+                class="msg-images"
+                *ngIf="m.images?.length"
+                role="group"
+                aria-label="Attached images">
+                <button
+                  class="img"
+                  type="button"
+                  *ngFor="let img of m.images"
+                  (click)="openImage(img)"
+                  [title]="img.name || 'Image'">
+                  <img
+                    [src]="img.thumbUrl || img.url"
+                    [alt]="img.name || 'Image'" />
+                </button>
+              </div>
+
+              <!-- User docs -->
+              <div
+                class="msg-docs"
+                *ngIf="m.docs?.length"
+                role="group"
+                aria-label="Attached documents">
+                <a
+                  class="doc-card"
+                  *ngFor="let d of m.docs"
+                  [href]="d.url"
+                  target="_blank"
+                  rel="noopener"
+                  [title]="d.name">
+                  <img class="doc-ico" src="assets/icons/doc.svg" alt="" aria-hidden="true" />
+                  <span class="doc-title">{{ d.name }}</span>
+                  <span class="doc-size" *ngIf="d.sizeKB">· {{ d.sizeKB }} KB</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- User timestamp + tick -->
             <div class="meta-line right">
               {{ m.createdAt | date:'shortTime' }}
               <span class="tick" aria-hidden="true">✓</span>
               <!-- <img class="tick-img" src="assets/icons/tick.svg" alt=""> -->
             </div>
           </div>
+
+          <!-- User avatar -->
           <div class="avatar me">
             <img src="assets/icons/user.png" alt="" aria-hidden="true" />
           </div>
         </div>
 
-        <!-- System chip (optional) -->
-        <div class="row" *ngIf="m.sender === 'system'" style="display:flex;align-items:center;gap:8px;">
+        <!-- System chip -->
+        <div
+          class="row"
+          *ngIf="m.sender === 'system'"
+          style="display:flex;align-items:center;gap:8px;">
           <div class="system" [innerText]="m.text"></div>
         </div>
       </ng-container>
 
-      <!-- USER is actively typing (right side, outside *ngFor) -->
-      <div class="row me" *ngIf="userTyping" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+      <!-- USER is typing (outside *ngFor) -->
+      <div
+        class="row me"
+        *ngIf="userTyping"
+        style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
         <div class="stack right">
-          <div class="bubble me typing" style="background:transparent;border:none;padding:0;box-shadow:none;display:flex;align-items:center;gap:6px;">
+          <div
+            class="bubble me typing"
+            style="background:transparent;border:none;padding:0;box-shadow:none;display:flex;align-items:center;gap:6px;">
             <span></span><span></span><span></span>
           </div>
         </div>
+
         <div class="avatar me talking">
           <img src="assets/icons/user.png" alt="" aria-hidden="true" />
         </div>
@@ -85,71 +228,79 @@
     </div>
   </main>
 
-
-  
-
-  <!-- Bottom: rounded composer -->
+  <!-- =========================
+       Composer (Bottom)
+       ========================= -->
   <footer class="composer-wrap">
-    <!-- Quick replies -->
-    <div class="quick-row">
+
+    <!-- Quick Replies (first message only) -->
+    <div class="quick-row" [class.hidden]="messages.length > 1">
       <button class="chip" (click)="sendQuick('Refund policy')">💸 <span>Refund policy</span></button>
       <button class="chip" (click)="sendQuick('Pricing')">💰 <span>Pricing</span></button>
       <button class="chip" (click)="sendQuick('FAQs')">🙋‍♂️ <span>FAQs</span></button>
     </div>
 
-    <!-- Status chips for attachments / TTS -->
-    <div class="attach-status" *ngIf="imgCount || docCount || ttsEnabled">
-      <!-- <div class="pill" *ngIf="imgCount">
-        <img class="pill-ico" src="assets/icons/photo.svg" alt="" />
-        <span>{{ imgCount }} image(s) selected</span>
-        <button class="pill-x" (click)="clearImages()" aria-label="Remove images">×</button>
-      </div> -->
-      <!-- <div class="pill" *ngIf="docCount">
-        <img class="pill-ico" src="assets/icons/doc.svg" alt="" />
-        <span>{{ docCount }} document(s) selected</span>
-        <button class="pill-x" (click)="clearDocs()" aria-label="Remove documents">×</button>
-      </div> -->
-      <div class="pill" *ngIf="ttsEnabled">
+    <!-- TTS Status -->
+    <div class="attach-status" *ngIf="ttsEnabled">
+      <div class="pill">
         <img class="pill-ico" src="assets/icons/speaker.svg" alt="" />
         <span>Text → Speech enabled</span>
         <button class="pill-x" (click)="disableTTS()" aria-label="Disable TTS">×</button>
       </div>
     </div>
 
+    <!-- Attachment Previews (Images + Docs) -->
+    <div class="previews" *ngIf="imagePreviews.length || docPreviews.length">
 
-<!-- Inline previews for images & documents (above the composer) -->
-<div class="previews" *ngIf="imagePreviews.length || docPreviews.length">
-  <!-- Image thumbnails -->
-  <div class="img-strip" *ngIf="imagePreviews.length">
-    <div class="thumb" *ngFor="let p of imagePreviews; let i = index" [title]="p.name">
-      <img [src]="p.url" [alt]="p.name" />
-      <button
-        class="thumb-x"
-        (click)="removeImage(i)"
-        aria-label="Remove image">
-        ×
-      </button>
+      <!-- Image thumbnails -->
+      <div
+        class="img-strip"
+        *ngIf="imagePreviews.length"
+        role="list"
+        aria-label="Selected images">
+        <div
+          class="thumb"
+          *ngFor="let p of imagePreviews; let i = index"
+          [title]="p.name"
+          role="listitem">
+          <img [src]="p.url" [alt]="p.name" />
+          <button
+            class="thumb-x"
+            (click)="removeImage(i)"
+            aria-label="Remove image">
+            ×
+          </button>
+        </div>
+      </div>
+
+      <!-- Document chips -->
+      <div
+        class="doc-strip"
+        *ngIf="docPreviews.length"
+        role="list"
+        aria-label="Selected documents">
+        <div
+          class="doc-chip"
+          *ngFor="let d of docPreviews; let i = index"
+          [title]="d.name"
+          role="listitem">
+          <img class="pill-ico" src="assets/icons/doc.svg" alt="" />
+          <span class="doc-name">{{ d.name }}</span>
+          <span class="doc-size">· {{ d.sizeKB }} KB</span>
+          <button
+            class="doc-x"
+            (click)="removeDoc(i)"
+            aria-label="Remove document">
+            ×
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <!-- Document name chips -->
-  <div class="doc-strip" *ngIf="docPreviews.length">
-    <div class="doc-chip" *ngFor="let d of docPreviews; let i = index" [title]="d.name">
-      <img class="pill-ico" src="assets/icons/doc.svg" alt="" />
-      <span class="doc-name">{{ d.name }}</span>
-      <span class="doc-size">· {{ d.sizeKB }} KB</span>
-      <button
-        class="doc-x"
-        (click)="removeDoc(i)"
-        aria-label="Remove document">
-        ×
-      </button>
-    </div>
-  </div>
-</div>
-
+    <!-- Composer Grid -->
     <div class="composer">
-      <!-- Attach (+) with popover menu -->
+
+      <!-- Attach (+) with popover -->
       <div class="attach-anchor">
         <button
           class="circle-btn attach"
@@ -159,13 +310,20 @@
           +
         </button>
 
-        <!-- Backdrop for the small menu -->
-        <div class="attach-backdrop" *ngIf="showAttachMenu" (click)="showAttachMenu=false"></div>
+        <!-- Click-away backdrop -->
+        <div
+          class="attach-backdrop"
+          *ngIf="showAttachMenu"
+          (click)="showAttachMenu=false">
+        </div>
 
         <!-- Popover menu -->
-        <div class="attach-menu" *ngIf="showAttachMenu" (click)="$event.stopPropagation()">
+        <div
+          class="attach-menu"
+          *ngIf="showAttachMenu"
+          (click)="$event.stopPropagation()">
           <button class="att-item" (click)="pickImages()">
-            <img src="assets/icons/image-.png" alt="" class="att-ico">
+            <img class="att-ico" src="assets/icons/image-.png" alt="" />
             <div class="att-text">
               <div class="att-title">Image (OCR)</div>
               <div class="att-sub">Upload photos; we’ll read the text</div>
@@ -173,18 +331,10 @@
           </button>
 
           <button class="att-item" (click)="pickDocs()">
-            <img src="assets/icons/document (1).png" alt="" class="att-ico">
+            <img class="att-ico" src="assets/icons/document (1).png" alt="" />
             <div class="att-text">
               <div class="att-title">Add document to text</div>
               <div class="att-sub">PDF, DOCX, TXT…</div>
-            </div>
-          </button>
-
-          <button class="att-item" (click)="toggleTTS()">
-            <img src="assets/icons/stt.png" alt="" class="att-ico">
-            <div class="att-text">
-              <div class="att-title">Text → Speech</div>
-              <div class="att-sub">Type text; get audio reply</div>
             </div>
           </button>
         </div>
@@ -202,9 +352,15 @@
           aria-label="Message input" />
       </ng-container>
 
+      <!-- Recording UI -->
       <ng-template #recordingTpl>
         <div class="rec-chip" role="group" aria-label="Recording controls">
-          <button class="rec-btn rec-x" (click)="cancelRecording()" aria-label="Cancel recording"> × </button>
+          <button
+            class="rec-btn rec-x"
+            (click)="cancelRecording()"
+            aria-label="Cancel recording">
+            ×
+          </button>
 
           <div class="rec-body">
             <div class="rec-left">
@@ -216,16 +372,23 @@
               <span *ngFor="let _ of waveBars"></span>
             </div>
 
-            <div class="rec-text" [class.empty]="!interimTranscript && !finalTranscript">
+            <div
+              class="rec-text"
+              [class.empty]="!interimTranscript && !finalTranscript">
               {{ interimTranscript || finalTranscript || 'Listening…' }}
             </div>
           </div>
 
-          <button class="rec-btn rec-ok" (click)="confirmRecording()" aria-label="Confirm transcription">✓</button>
+          <button
+            class="rec-btn rec-ok"
+            (click)="confirmRecording()"
+            aria-label="Confirm transcription">
+            ✓
+          </button>
         </div>
       </ng-template>
 
-      <!-- Mic & Send (hidden when isRecUI=true) -->
+      <!-- Mic + Send (hidden when recording UI visible) -->
       <ng-container *ngIf="!isRecUI">
         <button
           class="circle-btn mic"
@@ -239,15 +402,28 @@
         <button
           class="send-btn"
           (click)="send()"
-          [disabled]="!text.trim()"
+          [disabled]="!text.trim() && !imagePreviews.length && !docPreviews.length"
           title="Send">
           <img src="assets/icons/send.svg" alt="Send" />
         </button>
       </ng-container>
 
-      <!-- hidden file inputs (separate) -->
-      <input #imgInput type="file" class="hidden" accept="image/*" multiple (change)="onImagesSelected($event)" />
-      <input #docInput type="file" class="hidden" accept=".pdf,.doc,.docx,.txt,.md" multiple (change)="onDocsSelected($event)" />
+      <!-- Hidden file inputs -->
+      <input
+        #imgInput
+        type="file"
+        class="hidden"
+        accept="image/*"
+        multiple
+        (change)="onImagesSelected($event)" />
+
+      <input
+        #docInput
+        type="file"
+        class="hidden"
+        accept=".pdf,.doc,.docx,.txt,.md"
+        multiple
+        (change)="onDocsSelected($event)" />
     </div>
   </footer>
 </div>
