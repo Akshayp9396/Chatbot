@@ -337,8 +337,67 @@
               <div class="att-sub">PDF, DOCX, TXT…</div>
             </div>
           </button>
+
+          <button class="att-item" (click)="openVoiceOverlay()"> 
+            <!-- replace with your wave/voice icon path -->
+            <img class="att-ico" src="assets/icons/voice.png" alt="" />
+            <div class="att-text">
+              <div class="att-title">Voice to Voice</div>
+              <div class="att-sub">Talk with the bot hands-free</div>
+            </div>
+          </button>
+
         </div>
       </div>
+      
+<!-- ===== Voice-to-Voice Overlay ===== -->
+
+<div class="voice-overlay" *ngIf="showVoiceOverlay" (click)="closeVoiceOverlay()">
+  <div class="voice-sheet" (click)="$event.stopPropagation()">
+
+    <header class="voice-head">
+      <div class="vh-left">
+        <div class="speak-anim" [class.on]="isRecording || isSpeaking">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="vh-title">Voice to Voice</div>
+      </div>
+      <button class="vh-close" (click)="closeVoiceOverlay()" aria-label="Close">✕</button>
+    </header>
+
+    <div class="vh-body">
+      <!-- gender picker -->
+      <div class="gender-switch" role="tablist" aria-label="Voice gender">
+        <button type="button"
+                class="gender-btn"
+                [class.active]="selectedGender==='female'"
+                (click)="setGender('female')">Female</button>
+        <button type="button"
+                class="gender-btn"
+                [class.active]="selectedGender==='male'"
+                (click)="setGender('male')">Male</button>
+      </div>
+
+      <!-- mic status (no click) -->
+      <button class="mic-btn" [class.live]="isRecording || isSpeaking" type="button" tabindex="-1">
+        <!-- Siri-like concentric pulse (only animation changed) -->
+        <div class="mic-pulse" aria-hidden="true">
+          <span class="ring r1"></span>
+          <span class="ring r2"></span>
+          <span class="ring r3"></span>
+          <span class="ring r4"></span>
+        </div>
+
+        <!-- <img src="assets/icons/mic.svg" alt="" /> -->
+        <div class="mic-label">{{ isSpeaking ? 'Speaking…' : 'Listening…' }}</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+
 
       <!-- Input OR Recording chip -->
       <ng-container *ngIf="!isRecUI; else recordingTpl">
@@ -406,6 +465,7 @@
           title="Send">
           <img src="assets/icons/send.svg" alt="Send" />
         </button>
+        
       </ng-container>
 
       <!-- Hidden file inputs -->
@@ -425,5 +485,8 @@
         multiple
         (change)="onDocsSelected($event)" />
     </div>
+
+
+    
   </footer>
 </div>

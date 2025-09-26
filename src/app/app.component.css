@@ -30,7 +30,7 @@
   height:72px;  padding: 0 14px !important;   /* was 0 10px */
   display:flex; align-items:center; justify-content:space-between;
   color:#fff;
-  background:linear-gradient(90deg,#3b5bfd 0%,#00d2ff 100%);
+  background:linear-gradient(90deg,#3b5bfd 0%,#009dff 100%);
   box-shadow:0 10px 30px rgba(0,0,0,.08);
 }
 
@@ -215,7 +215,7 @@
   display:grid; align-items:center; gap:12px;
   grid-template-columns:56px 1fr 56px 64px; /* + | input | mic | send */
   width:100%; max-width:100%;
-  height:72px; padding:10px 12px;
+  height:80px; padding:12px 12px;
   border-radius:999px; overflow:visible;
   background:
     linear-gradient(#fff,#fff) padding-box,
@@ -628,5 +628,201 @@
 }
 
 
+
+
+
+
+
+
+
+/* ===== Voice Overlay (refined & responsive to 300×500) ===== */
+.voice-overlay{
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.5);
+  display:grid; place-items:center;
+  padding:clamp(8px, 2vw, 20px);
+  backdrop-filter:saturate(120%) blur(2px);
+  -webkit-backdrop-filter:saturate(120%) blur(2px);
+  overscroll-behavior:contain;
+}
+.voice-sheet{
+  width:clamp(300px, 92vw, 720px);
+  max-height:min(92dvh, 680px);
+  background:#fff; border-radius:20px;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.voice-head{
+  flex-shrink:0;
+  height:64px; padding:0 clamp(12px, 3vw, 16px);
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid #eef2f7;
+  background:linear-gradient(90deg,#3b5bfd 0%, #00a2ff 100%);
+  color:#fff;
+}
+.vh-left{ display:flex; align-items:center; gap:12px }
+.vh-title{ font-weight:600; font-size:clamp(14px, 1.7vw, 16px) }
+.vh-close{
+  border:0; background:transparent; color:#fff; font-size:20px; line-height:1;
+  width:36px; height:36px; border-radius:10px; cursor:pointer;
+}
+.vh-close:hover{ background:rgba(255,255,255,.15) }
+
+.vh-body{
+  flex: 1 1 auto;
+  padding: 22px 18px 108px;  
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+  overflow: auto;
+}
+
+/* gender switch */
+.gender-switch{
+  display:flex; flex-wrap:wrap; gap:10px; background:#f3f4f6;
+  padding:6px; border-radius:999px; align-self:center;
+}
+.gender-btn{
+  border:0; background:transparent;
+  padding:clamp(8px, 1.2vh, 10px) clamp(14px, 3.2vw, 16px);
+  border-radius:999px;
+  font-weight:600; cursor:pointer;
+  font-size:clamp(13px, 1.6vw, 14px);
+}
+.gender-btn.active{ background:#fff; box-shadow:0 4px 14px rgba(0,0,0,.08) }
+
+
+/* ─────────────────────────────────────────────────────────────
+   MIC BUTTON — Siri-like concentric pulse (purple/blue)
+   (Only this block changed)
+   ───────────────────────────────────────────────────────────── */
+.mic-btn{
+  position:relative; align-self:center;
+  width:clamp(120px, 32vw, 180px); height:clamp(120px, 32vw, 180px);
+  border-radius:50%;
+  border:0; background:#0f172a; color:#fff; /* inner face */
+  display:grid; place-items:center; gap:10px; cursor:pointer;
+  box-shadow:0 14px 40px rgba(0,0,0,.25);
+  touch-action:manipulation;
+  overflow:visible;                     /* let glow extend */
+}
+
+/* icon + label (unchanged) */
+.mic-btn img{ width:clamp(34px, 6vw, 42px); height:auto; filter:invert(1) }
+.mic-label{ font-size:clamp(11px, 1.5vw, 12px); opacity:.9; margin-top:8px }
+
+/* NEW: pulse container + rings (replaces old simple pulse) */
+.mic-btn .mic-pulse{
+  position:absolute; inset:0; border-radius:50%;
+  pointer-events:none; z-index:0; display:block;
+}
+
+/* inner aurora (subtle) */
+.mic-btn::before{
+  content:"";
+  position:absolute; inset:14%; border-radius:50%;
+  background:
+    radial-gradient(60% 60% at 45% 40%, rgba(255,255,255,.18), transparent 62%),
+    radial-gradient(65% 65% at 55% 60%, rgba(124,58,237,.25), transparent 62%),
+    conic-gradient(from 0deg, rgba(0,184,255,.18), rgba(124,58,237,.18), rgba(0,184,255,.18));
+  filter: blur(14px) saturate(115%);
+  opacity:0; transform:rotate(0deg) scale(.98);
+  animation:auraDrift 7s ease-in-out infinite alternate paused;
+  z-index:0;
+}
+
+/* soft outer halo */
+.mic-btn::after{
+  content:"";
+  position:absolute; inset:-12%;
+  border-radius:50%;
+  background: radial-gradient(circle at 50% 50%, rgba(124,58,237,.35), transparent 62%);
+  opacity:0;
+  animation:haloBreath 2.1s ease-in-out infinite paused;
+}
+
+/* 4 expanding gradient rings */
+.mic-btn .ring{
+  position:absolute; inset:calc(-1 * clamp(12px, 2.6vw, 22px));
+  border-radius:50%;
+  border:2px solid transparent;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(167,139,250,.24), rgba(167,139,250,0) 62%) padding-box,
+    conic-gradient(from 0deg, #7c3aed, #4f46e5, #7c3aed) border-box;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 0);
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #fb4242 0);
+  filter: drop-shadow(0 0 18px rgba(124,58,237,.35));
+  opacity:0; transform:scale(.72);
+}
+.mic-btn.live .r1{ animation:pulseRing 1.9s cubic-bezier(.22,.61,.36,1)   0s  infinite; opacity:1; }
+.mic-btn.live .r2{ animation:pulseRing 1.9s cubic-bezier(.22,.61,.36,1)  .28s infinite; opacity:1; }
+.mic-btn.live .r3{ animation:pulseRing 1.9s cubic-bezier(.22,.61,.36,1)  .56s infinite; opacity:1; }
+.mic-btn.live .r4{ animation:pulseRing 1.9s cubic-bezier(.22,.61,.36,1)  .84s infinite; opacity:1; }
+
+/* run aura/halo only when live */
+.mic-btn.live::before,
+.mic-btn.live::after{ opacity:1; animation-play-state:running; }
+
+/* keyframes for the new effect */
+@keyframes pulseRing{
+  0%   { transform:scale(.72); opacity:.90 }
+  60%  { opacity:.28 }
+  100% { transform:scale(1.24); opacity:0 }
+}
+@keyframes auraDrift{
+  0%   { transform: rotate(0deg) scale(.98) }
+  100% { transform: rotate(18deg) scale(1.03) }
+}
+@keyframes haloBreath{
+  0%,100% { transform: scale(.94); opacity:.26; }
+  50%     { transform: scale(1.06); opacity:.54; }
+}
+
+
+
+
+
+/* speaking animation (header) — NEW model */
+.speak-anim{
+  display:inline-flex; gap:3px; height:18px; align-items:flex-end;
+}
+.speak-anim span{
+  width:3px; height:100%;
+  background:#fff; border-radius:2px; opacity:.5;
+  transform-origin:bottom center; transform:scaleY(.25);
+}
+.speak-anim.on span{ opacity:1; }
+.speak-anim.on span:nth-child(1){ animation:speakWave 900ms ease-in-out -0.10s infinite; }
+.speak-anim.on span:nth-child(2){ animation:speakWave 880ms ease-in-out -0.05s infinite; }
+.speak-anim.on span:nth-child(3){ animation:speakWave 860ms ease-in-out 0s infinite; }
+.speak-anim.on span:nth-child(4){ animation:speakWave 880ms ease-in-out .05s infinite; }
+.speak-anim.on span:nth-child(5){ animation:speakWave 900ms ease-in-out .10s infinite; }
+
+@keyframes speakWave{
+  0%,100%{ transform:scaleY(.25) }
+  20%{ transform:scaleY(.9) }
+  40%{ transform:scaleY(.5) }
+  60%{ transform:scaleY(1) }
+  80%{ transform:scaleY(.4) }
+}
+
+/* responsive tweaks */
+@media (max-width:560px){
+  .voice-sheet{ width:96vw; max-height:94dvh; border-radius:16px; }
+  .voice-head{ height:56px; }
+  .vh-left{ gap:10px; }
+}
+
+@media (max-width:360px){
+  .vh-title{ font-size:14px; }
+  .gender-switch{ gap:8px; }
+  .gender-btn{ padding:8px 12px; font-size:13px; }
+}
+
+@media (max-width:320px), (max-height:540px){
+  .voice-sheet{ width:100vw; border-radius:0; max-height:100dvh; }
+  .vh-body{ padding:12px 12px 24px; gap:14px; }
+  .mic-btn{ width:120px; height:120px; }
+}
 
 

@@ -5,13 +5,13 @@ import type { AnimationItem } from 'lottie-web';
 type Sender = 'user' | 'bot' | 'system' | 'typing';
 
 interface MsgImage {
-  url: string;          // used by <img> and openImage()
-  thumbUrl?: string;    // if you later add separate thumb generation
+  url: string;
+  thumbUrl?: string;
   name?: string;
   sizeKB?: number;
 }
 interface MsgDoc {
-  url: string;          // href for open/download
+  url: string;
   name: string;
   sizeKB?: number;
 }
@@ -31,22 +31,22 @@ declare global {
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+  styleUrls: ['./app.component.css'],
 })
 export class AppComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLDivElement>;
 
-  // Hidden inputs used for attachment picking
+  // Hidden inputs used for attachment picking (kept for other parts of the app)
   @ViewChild('imgInput') imgInputRef!: ElementRef<HTMLInputElement>;
   @ViewChild('docInput') docInputRef!: ElementRef<HTMLInputElement>;
 
   title = 'Frontend';
 
-  // composer state
+  // composer state (legacy UI not shown in voice overlay)
   text = '';
-  attachCount = 0; // kept for compatibility (not used for logic anymore)
+  attachCount = 0;
 
-  // chat state
+  // chat state (kept)
   messages: Message[] = [
     {
       id: this.uuid(),
@@ -60,43 +60,52 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   userTyping = false;
   private userTypingTimer: any = null;
 
-  // ===== Attach popover + status chips =====
+  // attach menu (kept)
   isAttachOpen = false;
   pendingPick: 'images' | 'docs' | null = null;
-
-  // raw selected files (not strictly needed for UI now; kept if you upload later)
   imagesSelected: File[] = [];
   docsSelected: File[] = [];
-
   ttsEnabled = false;
 
-  // ===== Attachment previews (shown above composer; cleared after send) =====
+  // previews (kept)
   imagePreviews: { url: string; name: string; sizeKB: number }[] = [];
   docPreviews:   { url: string; name: string; ext: string; sizeKB: number }[] = [];
 
-  // Audio recording + STT
-  isRecording = false;              // for mic button visual
-  isRecUI = false;                  // whether chip replaces input
+  // Composer recorder (not used by overlay loop, kept for rest of app)
+  isRecording = false;              // shared flag (overlay also uses this)
+  isRecUI = false;
   private audioStream?: MediaStream;
   private mediaRecorder?: MediaRecorder;
   private audioChunks: Blob[] = [];
   lastAudioUrl: string | null = null;
 
-  recognition?: any;                // SpeechRecognition instance
+  recognition?: any;                // SpeechRecognition instance (shared)
   sttSupported = false;
   sttLang = 'en-IN';
   interimTranscript = '';
   finalTranscript = '';
 
-  // Timer
   recStartMs = 0;
   recElapsedMs = 0;
   private recTimerId: any = null;
 
-  // simple bars for the fake wave
   waveBars = new Array(14);
-
   chatOpen = true;
+
+  /* =========================
+     Voice-to-Voice Overlay state
+     ========================= */
+  showVoiceOverlay = false;
+  isSpeaking = false;
+  isConversing = false;            // overall loop state
+  private resumeAfterTTS = false;  // guard: only restart recognition after TTS ends
+
+  selectedGender: 'male' | 'female' = 'female';
+  allVoices: SpeechSynthesisVoice[] = [];
+  femaleVoice: SpeechSynthesisVoice | null = null;
+  maleVoice: SpeechSynthesisVoice | null = null;
+
+  private currentUtterance?: SpeechSynthesisUtterance;
 
   ngAfterViewInit(): void { this.scrollCanvasToBottom(); }
 
@@ -105,44 +114,30 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.revokeImagePreviews();
     this.revokeDocPreviews();
     if (this.lastAudioUrl) { try { URL.revokeObjectURL(this.lastAudioUrl); } catch {} }
+    // Stop voice things if component gets destroyed
+    this.stopConversation();
   }
 
   onClose(): void { this.chatOpen = false; }
 
-  /* ===== Lottie options ===== */
+  /* ===== Lottie (kept) ===== */
   botAvatarOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json',
-    renderer: 'svg',
-    autoplay: true,
-    loop: true
+    path: 'assets/lottie/bluebot.json', renderer: 'svg', autoplay: true, loop: true
   };
   botTypingOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json',
-    renderer: 'svg',
-    autoplay: true,
-    loop: true
+    path: 'assets/lottie/bluebot.json', renderer: 'svg', autoplay: true, loop: true
   };
   brandLottieOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json',
-    renderer: 'svg',
-    autoplay: true,
-    loop: true
+    path: 'assets/lottie/bluebot.json', renderer: 'svg', autoplay: true, loop: true
   };
   onBrandAnimCreated(anim: AnimationItem) {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      anim.pause();
-    }
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) anim.pause();
   }
 
-  /* ===== Header actions ===== */
+  /* ===== Header actions (kept) ===== */
   onRefresh(): void {
     this.messages = [
-      {
-        id: this.uuid(),
-        text: "Hello! Welcome to Tunningspot . I'm your virtual assistant. How can I help you today?",
-        sender: 'bot',
-        createdAt: new Date()
-      }
+      { id: this.uuid(), text: "Hello! Welcome to Tunningspot . I'm your virtual assistant. How can I help you today?", sender: 'bot', createdAt: new Date() }
     ];
     this.userTyping = false;
     this.text = '';
@@ -152,17 +147,14 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.ttsEnabled = false;
     this.isAttachOpen = false;
 
-    // Reset previews too
     this.revokeImagePreviews();
     this.revokeDocPreviews();
-
     this.scrollCanvasToBottom();
   }
 
-  /* ===== Attach popover actions ===== */
+  /* ===== Attach popover (kept) ===== */
   toggleAttachMenu(): void { this.isAttachOpen = !this.isAttachOpen; }
   closeAttachMenu(): void { this.isAttachOpen = false; }
-
   pickImages(): void {
     this.pendingPick = 'images';
     if (this.imgInputRef?.nativeElement) {
@@ -177,39 +169,30 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.docInputRef.nativeElement.click();
     }
   }
-
   enableTTS(): void { this.ttsEnabled = true; this.closeAttachMenu(); }
   disableTTS(): void { this.ttsEnabled = false; }
-
   clearImages(): void { this.revokeImagePreviews(); this.imagesSelected = []; }
   clearDocs(): void { this.revokeDocPreviews(); this.docsSelected = []; }
 
-  /* ===== File selection handlers (previews + auto close) ===== */
   public onImagesSelected(e: Event): void {
     const input = e.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
-
     this.imagesSelected = files;
-    this.buildImagePreviews(files);     // create object-URL thumbnails
-
-    this.isAttachOpen = false;          // auto-close popover
-    input.value = '';                   // allow picking same file again
+    this.buildImagePreviews(files);
+    this.isAttachOpen = false;
+    input.value = '';
   }
-
   public onDocsSelected(e: Event): void {
     const input = e.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
-
     this.docsSelected = files;
-    this.buildDocPreviews(files);       // create object-URLs for open/download
-
-    this.isAttachOpen = false;          // auto-close popover
+    this.buildDocPreviews(files);
+    this.isAttachOpen = false;
     input.value = '';
   }
 
-  /* ===== Image preview helpers ===== */
   private buildImagePreviews(files: File[]) {
-    this.revokeImagePreviews(); // clear old URLs first
+    this.revokeImagePreviews();
     this.imagePreviews = files.map(f => ({
       url: URL.createObjectURL(f),
       name: f.name,
@@ -217,36 +200,28 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     }));
   }
   private revokeImagePreviews() {
-    for (const p of this.imagePreviews) {
-      try { URL.revokeObjectURL(p.url); } catch {}
-    }
+    for (const p of this.imagePreviews) { try { URL.revokeObjectURL(p.url); } catch {} }
     this.imagePreviews = [];
   }
-
-  /* ===== Document preview helpers ===== */
   private buildDocPreviews(files: File[]) {
-    this.revokeDocPreviews(); // clear old URLs first
+    this.revokeDocPreviews();
     this.docPreviews = files.map(f => ({
-      url: URL.createObjectURL(f),      // so user can open/download immediately
+      url: URL.createObjectURL(f),
       name: f.name,
       ext: (f.name.split('.').pop() || '').toLowerCase(),
       sizeKB: Math.max(1, Math.round(f.size / 1024))
     }));
   }
   private revokeDocPreviews() {
-    for (const d of this.docPreviews) {
-      try { URL.revokeObjectURL(d.url); } catch {}
-    }
+    for (const d of this.docPreviews) { try { URL.revokeObjectURL(d.url); } catch {} }
     this.docPreviews = [];
   }
 
-  /* ===== Mic button ===== */
+  /* ===== Composer chip recorder (kept; not used in overlay loop) ===== */
   async onMicClick() {
-    if (this.isRecUI) return; // already recording
+    if (this.isRecUI) return;
     await this.startRecordingUI();
   }
-
-  /* ===== Start Recording + STT ===== */
   private async startRecordingUI() {
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -255,7 +230,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    // MediaRecorder
     this.audioChunks = [];
     this.mediaRecorder = new MediaRecorder(this.audioStream);
     this.mediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) this.audioChunks.push(ev.data); };
@@ -268,7 +242,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     };
     this.mediaRecorder.start();
 
-    // STT (browser)
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     this.sttSupported = !!SR;
     if (this.sttSupported) {
@@ -291,7 +264,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       try { this.recognition.start(); } catch {}
     }
 
-    // show chip + timer
     this.isRecUI = true;
     this.isRecording = true;
     this.interimTranscript = '';
@@ -300,8 +272,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.recElapsedMs = 0;
     this.recTimerId = setInterval(() => { this.recElapsedMs = Date.now() - this.recStartMs; }, 250);
   }
-
-  /* ===== Cancel / Confirm recording ===== */
   cancelRecording() {
     try { this.recognition?.stop(); } catch {}
     this.recognition = undefined;
@@ -317,7 +287,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.finalTranscript = '';
     this.recElapsedMs = 0;
   }
-
   confirmRecording() {
     try { this.recognition?.stop(); } catch {}
     this.recognition = undefined;
@@ -349,7 +318,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.docsSelected.splice(idx, 1);
   }
 
-  /* Timer label like 0:07, 1:23 */
   get recElapsedLabel(): string {
     const s = Math.floor(this.recElapsedMs / 1000);
     const m = Math.floor(s / 60);
@@ -357,12 +325,10 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     return `${m}:${sec}`;
   }
 
-  /* ===== Quick replies (send directly) ===== */
   sendQuick(raw: string): void {
     const msg = (raw || '').trim();
     if (!msg) return;
 
-    // push a single user message (no attachments)
     this.push({ id: this.uuid(), text: msg, sender: 'user', createdAt: new Date() });
 
     this.showBotTyping();
@@ -378,7 +344,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     }, 900);
   }
 
-  /* ===== User text typing (for animated bot avatar) ===== */
   onUserTyping(): void {
     this.userTyping = true;
     if (this.userTypingTimer) clearTimeout(this.userTypingTimer);
@@ -389,7 +354,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     if (immediate) this.userTyping = false;
   }
 
-  /* ===== Send flow (text + attachments into ONE message) ===== */
   send() {
     const trimmed = this.text.trim();
 
@@ -410,7 +374,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       ? this.docPreviews.map(d => ({ url: d.url, name: d.name, sizeKB: d.sizeKB }))
       : [];
 
-    // Single user message with text + attachments
     this.push({
       id: this.uuid(),
       text: hasText ? trimmed : null,
@@ -420,22 +383,15 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       createdAt: new Date()
     });
 
-    // Clear input & previews (temporary area disappears)
     this.text = '';
     this.attachCount = 0;
     this.imagesSelected = [];
     this.docsSelected = [];
     this.isAttachOpen = false;
 
-    // IMPORTANT: revoke previews AFTER message push? We should not revoke
-    // the URLs used by the just-pushed message. So do NOT revoke those here.
-    // Instead, create NEW object URLs for previews next time.
-    // To keep things simple, we WON'T revoke the ones we just used in the sent message.
-    // We only clear arrays so the preview section hides.
     this.imagePreviews = [];
     this.docPreviews = [];
 
-    // Bot reply (demo)
     this.showBotTyping();
     setTimeout(() => {
       this.hideBotTyping();
@@ -450,18 +406,12 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     }, 900);
   }
 
-  /* counts (kept if needed elsewhere) */
   public get imgCount(): number { return this.imagePreviews.length; }
   public get docCount(): number { return this.docPreviews.length; }
 
-  /* alias used by template */
   public get showAttachMenu(): boolean { return this.isAttachOpen; }
   public set showAttachMenu(v: boolean) { this.isAttachOpen = v; }
 
-  /* alias for TTS toggle in popover */
-  // public toggleTTS(): void { this.ttsEnabled = !this.ttsEnabled; }
-
-  /* View helpers */
   private push(m: Message) {
     this.messages = [...this.messages, m];
     this.scrollCanvasToBottom();
@@ -482,12 +432,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  /* Image open handler for thumbnail buttons */
-  openImage(img: MsgImage) {
-    try { window.open(img.url, '_blank'); } catch {}
-  }
+  openImage(img: MsgImage) { try { window.open(img.url, '_blank'); } catch {} }
 
-  /* demo reply generator */
   private generateReply(q: string): string {
     const t = (q || '').toLowerCase();
     if (t.includes('price') || t.includes('pricing')) return 'Starter ₹0, Pro ₹1,999/mo, Business ₹6,999/mo.';
@@ -502,4 +448,190 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       ? (crypto as any).randomUUID()
       : Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
+
+  /* =========================
+     Voice-to-Voice Overlay: auto loop
+     ========================= */
+
+  // Open overlay and auto-start listening
+  openVoiceOverlay() {
+    this.closeAttachMenu();
+    this.showVoiceOverlay = true;
+    this.loadVoices();
+    this.interimTranscript = '';
+    this.finalTranscript = '';
+    this.startConversation(); // auto start
+  }
+
+  // Close overlay and stop everything
+  closeVoiceOverlay() {
+    this.stopConversation();
+    this.showVoiceOverlay = false;
+  }
+
+  setGender(g: 'male' | 'female') { this.selectedGender = g; }
+
+  loadVoices() {
+    try {
+      const synth = window.speechSynthesis;
+      const pick = () => {
+        this.allVoices = synth.getVoices() || [];
+        const en = this.allVoices.filter(v => /en[-_]/i.test(v.lang));
+        const fallback = this.allVoices[0] ?? null;
+
+        this.femaleVoice =
+          (en.find(v => /female|woman|salli|joanna|olivia|natalie/i.test(v.name)) ??
+           en[0] ?? fallback);
+
+        this.maleVoice =
+          (en.find(v => /male|man|matthew|joey|brian|adam|david/i.test(v.name)) ??
+           en[1] ?? this.allVoices[1] ?? this.femaleVoice ?? fallback);
+      };
+      pick();
+      if (typeof synth.onvoiceschanged !== 'undefined') synth.onvoiceschanged = () => pick();
+    } catch {}
+  }
+
+  /* Conversation loop: listen → reply (TTS) → listen */
+  private startConversation() {
+    if (this.isConversing) return;
+    this.isConversing = true;
+    this.resumeAfterTTS = false;
+    this.startRecognitionOnce();
+  }
+
+  private stopConversation() {
+    this.isConversing = false;
+    this.resumeAfterTTS = false;
+    this.stopRecognition();
+    this.stopSpeaking();
+  }
+
+  private startRecognitionOnce() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      this.speak("Sorry, your browser doesn't support speech recognition.");
+      this.isConversing = false;
+      return;
+    }
+
+    // ensure any previous instance is closed
+    this.stopRecognition();
+
+    const rec = new SR();
+    rec.lang = this.sttLang;
+    rec.interimResults = false;  // no partials
+    rec.continuous = false;      // one utterance
+    // rec.maxAlternatives = 1;   // optional: uncomment if supported
+
+    rec.onstart = () => { this.isRecording = true; };
+
+    rec.onresult = async (e: any) => {
+      let finalText = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      }
+      finalText = finalText.trim();
+
+      // We are going to speak, so don't auto-restart from onend
+      this.resumeAfterTTS = true;
+      this.stopRecognition();
+
+      if (finalText) {
+        const reply = await this.callBot(finalText);
+        this.speak(reply || 'Sorry, I did not get that.');
+      } else {
+        // Nothing captured; allow normal onend restart
+        this.resumeAfterTTS = false;
+        if (this.isConversing && !this.isSpeaking) this.startRecognitionOnce();
+      }
+    };
+
+    rec.onerror = () => {
+      this.isRecording = false;
+      // If error happened not during planned TTS handoff, try again
+      if (this.isConversing && !this.isSpeaking && !this.resumeAfterTTS) {
+        setTimeout(() => this.startRecognitionOnce(), 400);
+      }
+    };
+
+    rec.onend = () => {
+      this.isRecording = false;
+      // If we stopped intentionally to speak, onend should NOT restart.
+      if (this.isConversing && !this.isSpeaking && !this.resumeAfterTTS) {
+        this.startRecognitionOnce();
+      }
+    };
+
+    this.recognition = rec;
+    try { rec.start(); } catch {}
+  }
+
+  private stopRecognition() {
+    try { this.recognition?.stop(); } catch {}
+    this.recognition = undefined;
+    this.isRecording = false;
+  }
+
+  private speak(text: string) {
+    if (!text) return;
+    this.stopSpeaking();
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1; utter.pitch = 1; utter.volume = 1;
+
+    const chosen = this.selectedGender === 'female' ? this.femaleVoice : this.maleVoice;
+    utter.voice = chosen ?? null;
+
+    utter.onstart = () => { this.isSpeaking = true; };
+
+    utter.onend = () => {
+      this.isSpeaking = false;
+      this.currentUtterance = undefined;
+      // planned handoff completed; allow recognition to resume
+      if (this.isConversing) {
+        this.resumeAfterTTS = false;
+        // small delay improves stability on some browsers
+        setTimeout(() => { if (this.isConversing) this.startRecognitionOnce(); }, 150);
+      }
+    };
+
+    utter.onerror = () => {
+      this.isSpeaking = false;
+      this.currentUtterance = undefined;
+      if (this.isConversing) {
+        this.resumeAfterTTS = false;
+        setTimeout(() => { if (this.isConversing) this.startRecognitionOnce(); }, 150);
+      }
+    };
+
+    this.currentUtterance = utter;
+    window.speechSynthesis.speak(utter);
+  }
+
+  private stopSpeaking() {
+    try {
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+      }
+    } catch {}
+    this.isSpeaking = false;
+    this.currentUtterance = undefined;
+  }
+
+  // Replace with your real backend call
+  private async callBot(userText: string): Promise<string> {
+    const t = userText.toLowerCase();
+    if (t.includes('price') || t.includes('pricing')) return 'Starter zero rupees, Pro one thousand nine hundred ninety nine per month, and Business six thousand nine hundred ninety nine per month.';
+    if (t.includes('hello') || t.includes('hi')) return 'Hi! How can I help you?';
+    return `You said: ${userText}. This is a demo reply.`;
+  }
+
+  /* ---- (optional) template aliases kept for compatibility ---- */
+  get interimText(): string { return this.interimTranscript; }
+  set interimText(v: string) { this.interimTranscript = v; }
+  get finalText(): string { return this.finalTranscript; }
+  set finalText(v: string) { this.finalTranscript = v; }
 }
+
+
