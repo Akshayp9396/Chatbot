@@ -53,12 +53,10 @@
           class="row"
           *ngIf="m.sender === 'typing'"
           style="display:flex;align-items:center;gap:8px;">
-          <div class="avatar talking">
-            <ng-lottie
-              class="lottie-avatar"
-              [options]="botTypingOpts"
-              aria-hidden="true">
-            </ng-lottie>
+
+          <div class="avatar talking bot-wrap" [class.thinking]="m.sender === 'typing'">
+            <ng-lottie class="lottie-avatar" [options]="robotOpts"></ng-lottie>
+            <ng-lottie class="overlay" [options]="searchToolOpts"></ng-lottie>
           </div>
 
           <div

@@ -92,6 +92,26 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   waveBars = new Array(14);
   chatOpen = true;
 
+
+
+
+robotOpts: AnimationOptions = {
+  path: 'assets/lottie/bluebot.json',
+  renderer: 'svg',
+  autoplay: true,
+  loop: true,
+} as const;
+
+searchToolOpts: AnimationOptions = {
+  path: 'assets/lottie/search.json',
+  renderer: 'svg',
+  autoplay: true,
+  loop: true,
+} as const;
+
+
+
+
   /* =========================
      Voice-to-Voice Overlay state
      ========================= */
@@ -120,16 +140,30 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   onClose(): void { this.chatOpen = false; }
 
-  /* ===== Lottie (kept) ===== */
+  /* ===== Lottie (typed & const-asserted) ===== */
   botAvatarOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json', renderer: 'svg', autoplay: true, loop: true
-  };
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true,
+  } as const;
+
   botTypingOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json', renderer: 'svg', autoplay: true, loop: true
-  };
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true,
+  } as const;
+
   brandLottieOpts: AnimationOptions = {
-    path: 'assets/lottie/bluebot.json', renderer: 'svg', autoplay: true, loop: true
-  };
+    path: 'assets/lottie/bluebot.json',
+    renderer: 'svg',
+    autoplay: true,
+    loop: true,
+  } as const;
+
+  // Overlay options (robot + search tool)
+ 
   onBrandAnimCreated(anim: AnimationItem) {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) anim.pause();
   }
@@ -633,5 +667,3 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   get finalText(): string { return this.finalTranscript; }
   set finalText(v: string) { this.finalTranscript = v; }
 }
-
-

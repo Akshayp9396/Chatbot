@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "http://localhost:3000",  //// Change this to your backend server URL
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}
