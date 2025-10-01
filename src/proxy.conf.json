@@ -1,6 +1,6 @@
 {
   "/api": {
-    "target": "http://localhost:3000",  //// Change this to your backend server URL
+    "target": "http://192.168.29.120:8000",  
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
