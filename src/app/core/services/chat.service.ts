@@ -146,11 +146,13 @@
 
 
 
+// src/app/core/services/chat.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom, catchError, timeout, throwError } from 'rxjs';
 import { environment } from 'src/environments/environment';
 
+// ===== Types =====
 type ChatJson = { text: string; session_id: string; chat_id?: string | null; tts?: boolean; voice?: 'male' | 'female' };
 type ChatRes  = { text: string; chat_id?: string | null; audio_url?: string | null };
 type STTRes   = { text: string; duration_sec: number };
@@ -166,63 +168,120 @@ type ConverseRes = {
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   // ========= Configure here =========
-  private readonly baseUrl = environment.apiBaseUrl; // e.g. 'http://localhost:8000'
+  private readonly baseUrl = environment.apiBaseUrl; // e.g. 'http://192.168.29.120:8000'
 
-  // Backend routes (from your backend spec)
-  private readonly chatPath          = '/chat';             // POST JSON -> { text, chat_id, audio_url? (null) }
-  private readonly ttsPath           = '/tts';              // POST JSON -> { audio_url }  (kept for completeness)
-  private readonly sttPath           = '/stt';              // POST multipart (audio, language?) -> { text, duration_sec }
-  private readonly uploadPath        = '/upload';           // POST multipart (file, ocr_language, ingest_now) -> { status, doc_id, pages }
-  private readonly ingestRefreshPath = '/ingest/refresh';   // POST {} -> { status:'ok' }
-  private readonly healthPath        = '/health';           // GET -> { status:'ok' }
-  private readonly conversePath      = '/converse';         // POST multipart (audio, language, voice, session_id, chat_id?) -> { ... }
+  // Backend routes
+  private readonly chatPath          = '/chat';
+  private readonly ttsPath           = '/tts';
+  private readonly sttPath           = '/stt';
+  private readonly uploadPath        = '/upload';
+  private readonly ingestRefreshPath = '/ingest/refresh';
+  private readonly healthPath        = '/health';
+  private readonly conversePath      = '/converse';
 
-  // Legacy/optional endpoints your UI referenced (may not exist on backend)
+  // Legacy/optional endpoints your UI referenced
   private readonly historyPath       = '/chat/history';
   private readonly quickRepliesPath  = '/chat/quick-replies';
 
-  // Keep chat continuity in the service
+  // ========= Multi-session keys =========
+  private readonly SS_CURRENT = 'CURRENT_SESSION_ID';    // per-tab current session
+  private readonly LS_SESSIONS = 'SESSIONS_INDEX';       // [{id,label,createdAt}]
+  private readonly LS_CHATID_PREFIX = 'CHAT_ID::';       // CHAT_ID::<sessionId>
+
+  // Chat continuity for the current session
   private chatId: string | null = null;
 
-  constructor(private http: HttpClient) {}
-
-  // ----- Session ID (one per tab) -----
-  private get sessionId(): string {
-    const KEY = 'SESSION_ID';
-    const existing = localStorage.getItem(KEY);
-    if (existing) return existing;
-
-    const generated = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-      ? (crypto as any).randomUUID()
-      : (Math.random().toString(36).slice(2) + Date.now().toString(36));
-
-    localStorage.setItem(KEY, generated);
-    return generated;
+  constructor(private http: HttpClient) {
+    const sid = this.resolveInitialSessionId();
+    this.setCurrentSessionInternal(sid);
   }
 
-  // ----- Headers -----
-  private buildHeaders(): HttpHeaders {
-    // Keep it simple and aligned with backend: only Accept + Authorization
-    // (Angular sets Content-Type automatically for JSON; never set it for FormData)
-    let h = new HttpHeaders({ Accept: 'application/json' });
+  // ========= Session core =========
+  private resolveInitialSessionId(): string {
+    const urlSid = new URLSearchParams(location.search).get('sid');
+    if (urlSid) {
+      this.ensureSessionIndexed(urlSid, '(from-url)');
+      sessionStorage.setItem(this.SS_CURRENT, urlSid);
+      return urlSid;
+    }
+    const existing = sessionStorage.getItem(this.SS_CURRENT);
+    if (existing) return existing;
+    const created = this.createSessionId();
+    this.ensureSessionIndexed(created, 'Tab Session');
+    sessionStorage.setItem(this.SS_CURRENT, created);
+    return created;
+  }
 
-    // Prefer BACKEND_API_KEY in env, otherwise use a stored token if you keep one
+  private createSessionId(): string {
+    return (crypto as any)?.randomUUID?.()
+      ?? (Math.random().toString(36).slice(2) + Date.now().toString(36));
+  }
+
+  private readIndex(): Array<{ id: string; label: string; createdAt: string }> {
+    try { return JSON.parse(localStorage.getItem(this.LS_SESSIONS) || '[]'); } catch { return []; }
+  }
+  private writeIndex(list: Array<{ id: string; label: string; createdAt: string }>) {
+    localStorage.setItem(this.LS_SESSIONS, JSON.stringify(list));
+  }
+  private ensureSessionIndexed(id: string, label = '') {
+    const idx = this.readIndex();
+    if (!idx.some(s => s.id === id)) {
+      idx.push({ id, label, createdAt: new Date().toISOString() });
+      this.writeIndex(idx);
+    }
+  }
+
+  get sessionId(): string {
+    return sessionStorage.getItem(this.SS_CURRENT)!;
+  }
+
+  private setCurrentSessionInternal(id: string) {
+    sessionStorage.setItem(this.SS_CURRENT, id);
+    const stored = localStorage.getItem(this.LS_CHATID_PREFIX + id);
+    this.chatId = stored || null;
+  }
+
+  // ========= Public session API (use in components if you want UI for sessions) =========
+  public newSession(label = 'Session'): string {
+    const id = this.createSessionId();
+    this.ensureSessionIndexed(id, label);
+    this.setCurrentSessionInternal(id);
+    return id;
+  }
+  public useSession(id: string): boolean {
+    const found = this.readIndex().some(s => s.id === id);
+    if (!found) return false;
+    this.setCurrentSessionInternal(id);
+    return true;
+  }
+  public listSessions() { return this.readIndex(); }
+  public currentSession() {
+    const id = this.sessionId;
+    return this.readIndex().find(s => s.id === id) ?? { id, label: '(current)', createdAt: '' };
+  }
+  public deleteSession(id: string) {
+    const left = this.readIndex().filter(s => s.id !== id);
+    this.writeIndex(left);
+    localStorage.removeItem(this.LS_CHATID_PREFIX + id);
+    if (this.sessionId === id) {
+      const fresh = this.newSession('Session');
+      this.setCurrentSessionInternal(fresh);
+    }
+  }
+
+  // ========= Headers / opts =========
+  private buildHeaders(): HttpHeaders {
+    let h = new HttpHeaders({ Accept: 'application/json' });
     const token =
       environment.backendApiKey ||
       localStorage.getItem('BACKEND_API_TOKEN') ||
       localStorage.getItem('access_token');
-
     if (token) h = h.set('Authorization', `Bearer ${token}`);
     return h;
   }
+  private opts() { return { headers: this.buildHeaders() } as const; }
 
-  private opts() {
-    return { headers: this.buildHeaders() } as const;
-  }
-
-  // ================== Core features (match backend) ==================
-
-  /** Chat (text -> text). Keeps your current signature but sends backend JSON shape. */
+  // ========= API calls =========
   async askBot(payload: { message: string; images?: string[]; docs?: string[] }): Promise<string> {
     const body: ChatJson = {
       text: payload.message,
@@ -235,12 +294,15 @@ export class ChatService {
         .pipe(timeout(30000), catchError(e => throwError(() => this.err(e))))
     );
 
-    // Persist chat_id for continuity
-    if (res?.chat_id) this.chatId = res.chat_id;
+    if (res?.chat_id) {
+      this.chatId = res.chat_id;
+      if (this.chatId) {
+        localStorage.setItem(this.LS_CHATID_PREFIX + this.sessionId, this.chatId);
+      }
+    }
     return res?.text ?? '';
   }
 
-  /** STT (audio -> text). Field must be named "audio" per backend. */
   async transcribeAudio(blob: Blob, language = 'en'): Promise<string> {
     const form = new FormData();
     form.append('audio', blob, 'audio.webm');
@@ -253,7 +315,6 @@ export class ChatService {
     return res?.text ?? '';
   }
 
-  /** Voice-to-voice (single call): audio -> STT -> RAG -> TTS via /converse. */
   async voiceToVoice(blob: Blob, language = 'en', voice: 'male' | 'female' = 'male') {
     const form = new FormData();
     form.append('audio', blob, 'audio.webm');
@@ -267,9 +328,13 @@ export class ChatService {
         .pipe(timeout(120000), catchError(e => throwError(() => this.err(e))))
     );
 
-    if (res?.chat_id) this.chatId = res.chat_id ?? this.chatId;
+    if (res?.chat_id) {
+      this.chatId = res.chat_id ?? this.chatId;
+      if (this.chatId) {
+        localStorage.setItem(this.LS_CHATID_PREFIX + this.sessionId, this.chatId);
+      }
+    }
 
-    // Map to your existing return shape so UI doesn’t change
     return {
       reply: res?.reply_text ?? '',
       audioUrl: res?.audio_url || undefined,
@@ -278,16 +343,14 @@ export class ChatService {
     };
   }
 
-  /** Upload Image -> use unified /upload under the hood, keep separate method for UI. */
+  /** Upload Image -> unified /upload */
   async uploadImage(file: File) {
     return await this._uploadCommon(file, 'eng', true);
   }
-
-  /** Upload Document -> use unified /upload under the hood, keep separate method for UI. */
+  /** Upload Document -> unified /upload */
   async uploadDocument(file: File) {
     return await this._uploadCommon(file, 'eng', true);
   }
-
   private async _uploadCommon(file: File, ocrLang: string, ingestNow: boolean) {
     const form = new FormData();
     form.append('file', file, file.name);
@@ -301,26 +364,23 @@ export class ChatService {
 
     // Return the shape your component expects
     return {
-      url: r.doc_id, // stand-in "url" so your component logic keeps working
+      url: r.doc_id,
       name: file.name,
       sizeKB: Math.max(1, Math.round(file.size / 1024)),
       mimeType: file.type || 'application/octet-stream',
     };
   }
-
   async uploadManyImages(files: File[]) {
     const urls: string[] = [];
     for (const f of files) urls.push((await this.uploadImage(f)).url);
     return urls;
   }
-
   async uploadManyDocs(files: File[]) {
     const urls: string[] = [];
     for (const f of files) urls.push((await this.uploadDocument(f)).url);
     return urls;
   }
 
-  /** Ingestion refresh (incremental embeddings). */
   async ingestRefresh(): Promise<{ status: string }> {
     return await firstValueFrom(
       this.http.post<{ status: string }>(`${this.baseUrl}${this.ingestRefreshPath}`, {}, this.opts())
@@ -328,7 +388,6 @@ export class ChatService {
     );
   }
 
-  /** Health probe. */
   async health(): Promise<{ status: string }> {
     return await firstValueFrom(
       this.http.get<{ status: string }>(`${this.baseUrl}${this.healthPath}`, this.opts())
@@ -336,30 +395,16 @@ export class ChatService {
     );
   }
 
-  // ================== Optional / compatibility helpers ==================
-
-  /** TTS helper (kept for completeness; not used if you don’t need TTS from backend). */
-  async tts(text: string, voice: 'male' | 'female' = 'male'): Promise<string | undefined> {
-    const body = { text, voice };
-    const res = await firstValueFrom(
-      this.http.post<{ audio_url: string }>(`${this.baseUrl}${this.ttsPath}`, body, this.opts())
-        .pipe(timeout(45000), catchError(e => throwError(() => this.err(e))))
-    );
-    return res?.audio_url;
-  }
-
-  /** These two are no-ops now because backend does OCR inside /upload. */
-  async ocrImage(_file: File): Promise<string> { return ''; }
+  // ===== Optional helpers so your component compiles =====
+  async ocrImage(_file: File): Promise<string> { return ''; } // backend does OCR in /upload
   async docToText(_file: File): Promise<{ text?: string; pages?: string[] }> { return {}; }
 
-  /** Legacy endpoints; only keep if your UI really calls them. */
   async getHistory(): Promise<any[]> {
     return await firstValueFrom(
       this.http.get<any[]>(`${this.baseUrl}${this.historyPath}`, this.opts())
         .pipe(timeout(15000), catchError(e => throwError(() => this.err(e))))
     );
   }
-
   async getQuickReplies(): Promise<Array<string | { id: string; text: string }>> {
     return await firstValueFrom(
       this.http.get<Array<string | { id: string; text: string }>>(`${this.baseUrl}${this.quickRepliesPath}`, this.opts())
@@ -367,7 +412,7 @@ export class ChatService {
     );
   }
 
-  // ================== Utilities ==================
+  // ===== Utilities =====
   refreshWelcome(): { id: string; text: string; sender: 'bot'; createdAt: Date } {
     return {
       id: this.uuid(),
@@ -390,10 +435,7 @@ export class ChatService {
   }
 
   private uuid(): string {
-    return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? (crypto as any).randomUUID()
-      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    return (crypto as any)?.randomUUID?.()
+      ?? (Math.random().toString(36).slice(2) + Date.now().toString(36));
   }
 }
-
-
