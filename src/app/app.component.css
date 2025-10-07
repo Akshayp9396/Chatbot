@@ -96,13 +96,31 @@
 
 .avatar{
   flex:0 0 auto;
-  width:clamp(40px,6vw,56px); height:clamp(40px,6vw,56px);
+  width:clamp(50px,6vw,56px); height:clamp(50px,6vw,56px);
   display:flex; align-items:center; justify-content:center;
   overflow:hidden; border-radius:50%;
-  background:#eef2ff; border:1px solid #e5e7eb;
+  border:1px solid #e5e7eb;
 }
-.avatar.me{ background:#e8f0f7; border-color:#bbe3f7; }
+.avatar.me{ background:#ffffff00; border-color:#bbe3f7; }
 .avatar img{ width:70%; height:70%; display:block; object-fit:contain; }
+
+/* --- Lottie: make it a bit darker & higher contrast --- */
+.avatar .lottie-avatar{
+  width:95%; height:95%; display:block; pointer-events:none;
+
+  /* subtle visibility boost */
+  filter: brightness(.80) contrast(1.95) saturate(1.12)
+          drop-shadow(0 0 1px rgba(0,0,0,.15));
+}
+
+/* ensure the filter applies no matter how the player renders */
+.avatar .lottie-avatar svg,
+.avatar .lottie-avatar canvas{
+  filter: brightness(.60) contrast(1.25) saturate(1.20)
+          drop-shadow(0 0 1px rgba(0,0,0,.15));
+}
+
+
 
 /* bubbles */
 .bubble{
@@ -208,32 +226,42 @@
   padding:12px;
   padding-bottom:calc(12px + env(safe-area-inset-bottom));
   background:transparent;
+   --composer-h: 62px;       
+  
 }
 
 .composer{
   position:relative;
-  display:grid; align-items:center; gap:12px;
+  display:grid; align-items:center; gap:4px;
   grid-template-columns:56px 1fr 56px 64px; /* + | input | mic | send */
-  width:100%; max-width:100%;
-  height:80px; padding:12px 12px;
+  width:90%; max-width:100%;
+   
+  padding:8px 10px;
+  
   border-radius:999px; overflow:visible;
   background:
     linear-gradient(#fff,#fff) padding-box,
     linear-gradient(90deg,#3b5bfd,#51aeff,#00cdf6) border-box;
   border:2px solid transparent; box-shadow:0 10px 30px rgba(0,0,0,.08);
   background-size:300% 300%; animation:moveGradient 6s linear infinite;
+  
+display:flex-start; justify-content:center;
 }
 
 /* circle buttons (+ and mic) */
 .circle-btn{
-  width:56px; height:56px;
+   width:44px; height:44px;
+
   display:flex; align-items:center; justify-content:center;
   border:none; border-radius:50%; cursor:pointer;
   background:#fff; color:#3b5bfd;
   transition:background .2s ease, transform .2s ease;
   font-size:clamp(28px,3.6vw,40px);
+  
+  
+  
 }
-.circle-btn img{ width:34px; height:34px; display:block; }
+.circle-btn img{  width:22px; height:22px; display:block; }
 .circle-btn:hover{ background:#f1f5ff; transform:scale(1.05); }
 .circle-btn.mic.rec{ background:#fff0f0; color:#ef4444; }
 .circle-btn.mic.rec img{
@@ -242,20 +270,24 @@
 
 /* send */
 .send-btn{
-  width:56px; height:56px; padding:0;
+   width:48px; height:48px;  padding:0;
   display:flex; align-items:center; justify-content:center;
   border:none; border-radius:50%; cursor:pointer;
   transition:transform .2s ease, opacity .2s ease; color:#fff;
 }
-.send-btn img{ width:50px; height:50px; display:block; }
+.send-btn img{ width:32px; height:32px; display:block; }
 .send-btn:disabled{ opacity:.6; cursor:not-allowed; }
 .send-btn:hover:not(:disabled){ transform:scale(1.05); }
 
 /* input */
 .composer input{
-  height:56px; min-width:0; /* allow the grid cell to shrink on small screens */
+   height:40px;
+  font-size:16px; min-width:0; /* allow the grid cell to shrink on small screens */
   border:none; outline:none; background:transparent;
-  font-size:18px; padding:0 6px; color:#0f172a;
+  padding:0 6px; color:#0f172a;
+
+  line-height:1.2;
+
 }
 .composer input::placeholder{ color:#94a3b8; }
 
@@ -264,6 +296,79 @@
   display:flex; align-items:center; gap:12px;
   margin-top:8px; font-size:12px; color:#64748b;
 }
+
+
+
+
+
+/* Live chat mini button (outside, right of composer) — padding-safe */
+.livechat-fab{
+
+  --icon-size: 30px;         /* visible icon (img) size */
+  --fab-pad: 14px;           /* inner white space between icon and edge */
+  --fab-size: calc(var(--icon-size) + (2 * var(--fab-pad)) + 4px);
+  justify-content: center;
+  text-align: center;
+  position:absolute;
+  z-index:60;
+  width:var(--fab-size);
+  height:var(--fab-size);
+  box-sizing:border-box;                 /* keep outer size fixed when padding changes */
+  padding: var(--fab-pad);
+  border-radius:50%;
+  border:2px solid transparent;
+  display:grid; place-items:center;
+  cursor:pointer;
+
+  /* White face + blue gradient outline */
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(90deg,#3b5bfd,#51aeff,#00cdf6) border-box;
+  box-shadow:0 8px 24px rgba(59,91,253,.18);
+  transition:transform .15s ease, box-shadow .15s ease, filter .2s ease;
+  background-size:300% 300%;
+  animation:moveGradient 6s linear infinite;
+
+  /* placement */
+  right:max(6px, calc((100% - 90%) / 2 - 8px));
+  bottom:calc(12px + env(safe-area-inset-bottom) + (var(--composer-h) - var(--fab-size)) / 2);
+}
+
+.livechat-fab:hover{ transform:translateY(-1px); box-shadow:0 10px 28px rgba(59,91,253,.24); }
+.livechat-fab:active{ transform:translateY(0); }
+.livechat-fab:focus-visible{ outline:2px solid #3b82f6; outline-offset:2px; }
+
+/* The icon always stays visible because its size is explicit */
+.livechat-fab img{
+  width:var(--icon-size);
+  height:var(--icon-size);
+  object-fit:contain;
+  display:block;
+  filter:none;
+  pointer-events:none;
+}
+
+/* Mobile tweaks */
+@media (max-width:480px){
+  .composer-wrap{ --composer-h:56px; }
+  .livechat-fab{
+    --icon-size: 18px;
+    --fab-pad: 8px;            /* tighter on small screens */
+    /* --fab-size auto-recalculates */
+    right:8px;
+  }
+}
+@media (max-width:360px){
+  .livechat-fab{
+    --icon-size: 16px;
+    --fab-pad: 7px;
+    right:8px;
+  }
+}
+
+
+
+
 
 
 /* =====================================================
@@ -884,3 +989,4 @@
   transform: scale(0.85);
   transform-origin: center;
 }
+
