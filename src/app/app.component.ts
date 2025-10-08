@@ -2,6 +2,7 @@ import { AfterViewInit, Component, ElementRef, ViewChild, OnDestroy } from '@ang
 import { AnimationOptions } from 'ngx-lottie';
 import type { AnimationItem } from 'lottie-web';
 import { ChatService } from './core/services/chat.service';
+import { environment } from 'src/environments/environment';
 
 type Sender = 'user' | 'bot' | 'system' | 'typing';
 
@@ -70,7 +71,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   private audioChunks: Blob[] = [];
   lastAudioUrl: string | null = null;
 
-  recognition?: any;            // composer STT
+  // Composer STT (browser)
+  recognition?: any;
   sttSupported = false;
   sttLang = 'en-IN';
   interimTranscript = '';
@@ -93,9 +95,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   showVoiceOverlay = false;
   isSpeaking = false;
 
-  // PTT-only recognition instance (overlay mic)
-  private pttRecognition?: any;
+  // PTT recording (server-side STT+TTS via /converse)
+  private pttStream?: MediaStream;
+  private pttRecorder?: MediaRecorder;
+  private pttChunks: Blob[] = [];
   isPTTActive = false;
+  processingPTT = false;
+  private lastPTTAudio?: HTMLAudioElement;
 
   selectedGender: 'male' | 'female' = 'female';
   allVoices: SpeechSynthesisVoice[] = [];
@@ -192,7 +198,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.docsSelected.splice(idx, 1);
   }
 
-  // ===== Composer mic (not overlay) =====
+  // ===== Composer mic (local STT) =====
   async onMicClick() { if (!this.isRecUI) await this.startRecordingUI(); }
   private async startRecordingUI() {
     try { this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
@@ -260,7 +266,10 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const textOut = (this.finalTranscript || this.interimTranscript || '').trim();
     this.text = textOut; this.interimTranscript = ''; this.finalTranscript = ''; this.recElapsedMs = 0;
   }
-  get recElapsedLabel(): string { const s = Math.floor(this.recElapsedMs / 1000); const m = Math.floor(s / 60); const sec = (s % 60).toString().padStart(2, '0'); return `${m}:${sec}`; }
+  get recElapsedLabel(): string {
+    const s = Math.floor(this.recElapsedMs / 1000); const m = Math.floor(s / 60);
+    const sec = (s % 60).toString().padStart(2, '0'); return `${m}:${sec}`;
+  }
 
   // ===== Quick replies =====
   async sendQuick(raw: string): Promise<void> {
@@ -292,77 +301,72 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     if (immediate) this.userTyping = false;
   }
 
-  // ===== Send message =====
-async send() {
-  if (this.isSending) return;
+  // ===== Send message (text + attachments) =====
+  async send() {
+    if (this.isSending) return;
 
-  const trimmed = this.text.trim();
-  const hasImages = this.imagesSelected.length > 0;
-  const hasDocs   = this.docsSelected.length   > 0;
-  const hasText   = !!trimmed;
-  if (!hasText && !hasImages && !hasDocs) return;
+    const trimmed = this.text.trim();
+    const hasImages = this.imagesSelected.length > 0;
+    const hasDocs   = this.docsSelected.length   > 0;
+    const hasText   = !!trimmed;
+    if (!hasText && !hasImages && !hasDocs) return;
 
-  this.isSending = true;
-  let typingShown = false;
+    this.isSending = true;
+    let typingShown = false;
 
-  try {
-    if (this.isRecUI) this.cancelRecording();
-    this.stopUserTyping(true);
-
-    // 1) Show the user's message immediately
-    const images = this.imagePreviews.map(p => ({ url: p.url, thumbUrl: p.url, name: p.name, sizeKB: p.sizeKB }));
-    const docs   = this.docPreviews.map(d => ({ url: d.url, name: d.name, sizeKB: d.sizeKB }));
-    this.push({
-      id: this.uuid(),
-      text: hasText ? trimmed : null,
-      images: images.length ? images : undefined,
-      docs:   docs.length   ? docs   : undefined,
-      sender: 'user',
-      createdAt: new Date()
-    });
-
-    // 2) Show bot typing **before** uploads start
-    if (!this.showVoiceOverlay) {
-      this.showBotTyping();
-      typingShown = true;
-    }
-
-    // 3) Copy files & clear UI state for snappy UX
-    const imageFiles = [...this.imagesSelected];
-    const docFiles   = [...this.docsSelected];
-    this.text = '';
-    this.attachCount = 0;
-    this.isAttachOpen = false;
-    this.imagesSelected = [];
-    this.docsSelected = [];
-    this.imagePreviews = [];
-    this.docPreviews = [];
-
-    // 4) Do uploads (typing stays visible during this)
     try {
-      if (imageFiles.length) await this.chatApi.uploadManyImages(imageFiles);
-      if (docFiles.length)   await this.chatApi.uploadManyDocs(docFiles);
+      if (this.isRecUI) this.cancelRecording();
+      this.stopUserTyping(true);
+
+      // show user's message immediately
+      const images = this.imagePreviews.map(p => ({ url: p.url, thumbUrl: p.url, name: p.name, sizeKB: p.sizeKB }));
+      const docs   = this.docPreviews.map(d => ({ url: d.url, name: d.name, sizeKB: d.sizeKB }));
+      this.push({
+        id: this.uuid(),
+        text: hasText ? trimmed : null,
+        images: images.length ? images : undefined,
+        docs:   docs.length   ? docs   : undefined,
+        sender: 'user',
+        createdAt: new Date()
+      });
+
+      // show typing before uploads
+      if (!this.showVoiceOverlay) { this.showBotTyping(); typingShown = true; }
+
+      // copy files & clear UI state
+      const imageFiles = [...this.imagesSelected];
+      const docFiles   = [...this.docsSelected];
+      this.text = '';
+      this.attachCount = 0;
+      this.isAttachOpen = false;
+      this.imagesSelected = [];
+      this.docsSelected = [];
+      this.imagePreviews = [];
+      this.docPreviews = [];
+
+      // uploads (keep typing visible)
+      try {
+        if (imageFiles.length) await this.chatApi.uploadManyImages(imageFiles);
+        if (docFiles.length)   await this.chatApi.uploadManyDocs(docFiles);
+      } catch (e: any) {
+        throw new Error(`Upload failed: ${e?.message || e}`);
+      }
+
+      // ask the bot
+      const reply = await this.chatApi.askBot({ message: hasText ? trimmed : '' });
+
+      // render bot reply
+      if (typingShown) this.hideBotTyping();
+      typingShown = false;
+      this.push({ id: this.uuid(), text: reply, sender: 'bot', createdAt: new Date() });
+      this.maybeSpeak(reply);
     } catch (e: any) {
-      // Still hide typing in finally; just throw to be caught below
-      throw new Error(`Upload failed: ${e?.message || e}`);
+      if (typingShown) this.hideBotTyping();
+      this.push({ id: this.uuid(), text: e?.message || 'Failed to get reply.', sender: 'bot', createdAt: new Date() });
+    } finally {
+      this.isSending = false;
     }
-
-    // 5) Ask the bot (still keep typing visible)
-    const payload: any = { message: hasText ? trimmed : null };
-    const reply = await this.chatApi.askBot(payload);
-
-    // 6) Render bot reply
-    this.push({ id: this.uuid(), text: reply, sender: 'bot', createdAt: new Date() });
-    this.maybeSpeak(reply);
-
-  } catch (e: any) {
-    this.push({ id: this.uuid(), text: e?.message || 'Failed to get reply.', sender: 'bot', createdAt: new Date() });
-  } finally {
-    // 7) Always hide typing once everything is done (or failed)
-    if (typingShown) this.hideBotTyping();
-    this.isSending = false;
   }
-}
 
   // ===== Helpers =====
   public get imgCount(): number { return this.imagePreviews.length; }
@@ -411,7 +415,7 @@ async send() {
     this.interimTranscript = '';
     this.finalTranscript = '';
 
-    // PTT-ONLY: ensure nothing is listening until the mic button is held
+    // make sure overlay is idle until button is held
     this.teardownOverlayAudio();
   }
   closeVoiceOverlay() {
@@ -420,8 +424,11 @@ async send() {
   }
   private teardownOverlayAudio() {
     this.stopSpeaking();
-    try { this.pttRecognition?.stop(); } catch {}
-    this.pttRecognition = undefined;
+    try { this.pttRecorder?.stop(); } catch {}
+    this.pttRecorder = undefined;
+    try { this.pttStream?.getTracks().forEach(t => t.stop()); } catch {}
+    this.pttStream = undefined;
+    this.pttChunks = [];
     this.isPTTActive = false;
     this.isRecording = false;
   }
@@ -465,62 +472,96 @@ async send() {
   }
 
   // -------------------- PUSH-TO-TALK (overlay mic button ONLY) --------------------
-  startPTT() {
-    if (!this.showVoiceOverlay) return;        // only when overlay is visible
-    if (this.isSpeaking) this.stopSpeaking();  // cut TTS immediately
+  async startPTT() {
+    if (!this.showVoiceOverlay) return;
+    if (this.isSpeaking) this.stopSpeaking();
 
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { this.speak("Speech recognition is not supported in this browser."); return; }
+    // Start recording raw audio for /converse
+    try {
+      this.pttStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      this.push({ id: this.uuid(), text: 'Microphone permission denied or unsupported.', sender: 'system', createdAt: new Date() });
+      return;
+    }
 
-    // ensure fresh session
-    try { this.pttRecognition?.stop(); } catch {}
-    this.pttRecognition = new SR();
-    this.pttRecognition.lang = this.sttLang;
-    this.pttRecognition.interimResults = true;
-       this.pttRecognition.continuous = true;
+    this.pttChunks = [];
+    try {
+      this.pttRecorder = new MediaRecorder(this.pttStream);
+    } catch {
+      this.push({ id: this.uuid(), text: 'MediaRecorder is not supported in this browser.', sender: 'system', createdAt: new Date() });
+      try { this.pttStream.getTracks().forEach(t => t.stop()); } catch {}
+      this.pttStream = undefined;
+      return;
+    }
 
-    this.interimTranscript = '';
-    this.finalTranscript = '';
+    this.pttRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) this.pttChunks.push(ev.data); };
+    this.pttRecorder.onstop = () => { /* blob consumed in stopPTT */ };
+
     this.isPTTActive = true;
     this.isRecording = true;
-
-    this.pttRecognition.onresult = (e: any) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i];
-        if (res.isFinal) this.finalTranscript += res[0].transcript + ' ';
-        else interim += res[0].transcript;
-      }
-      this.interimTranscript = interim.trim();
-    };
-    this.pttRecognition.onerror = () => {};
-    this.pttRecognition.onend = () => { this.isRecording = false; };
-
-    try { this.pttRecognition.start(); } catch {}
+    try { this.pttRecorder.start(); } catch {}
   }
 
-  /** stopPTT(true) => send to backend & TTS reply; stopPTT(false) => just stop */
+  /** stopPTT(true) => send to backend & play AI audio; stopPTT(false) => just stop */
   async stopPTT(confirm: boolean) {
     if (!this.isPTTActive) return;
-    try { this.pttRecognition?.stop(); } catch {}
+
+    // Stop recorder and wait a tick so dataavailable fires
+    try { this.pttRecorder?.stop(); } catch {}
     this.isPTTActive = false;
     this.isRecording = false;
 
-    const spoken = (this.finalTranscript || this.interimTranscript || '').trim();
-    this.interimTranscript = '';
-    this.finalTranscript = '';
+    // Give recorder a moment to flush
+    await new Promise(r => setTimeout(r, 10));
 
-    if (confirm && spoken) {
-      const reply = await this.safeAsk(spoken);
-      this.speak(reply || 'Sorry, I did not get that.');
+    const tracks = this.pttStream?.getTracks() || [];
+    tracks.forEach(t => { try { t.stop(); } catch {} });
+    this.pttStream = undefined;
+
+    if (!confirm) { this.pttChunks = []; return; }
+    if (!this.pttChunks.length) { this.speak('I did not catch that.'); return; }
+
+    const audioBlob = new Blob(this.pttChunks, { type: 'audio/webm' });
+    this.pttChunks = [];
+    this.processingPTT = true;
+
+    try {
+      const lang = (this.sttLang || 'en').split('-')[0] || 'en';
+      const res = await this.chatApi.voiceToVoice(audioBlob, lang, this.selectedGender);
+
+      // Push transcript (user) and reply (bot) to the chat so UI stays consistent
+      if (res.transcript) {
+        this.push({ id: this.uuid(), text: res.transcript, sender: 'user', createdAt: new Date() });
+      }
+      this.push({ id: this.uuid(), text: res.reply || '(no reply)', sender: 'bot', createdAt: new Date() });
+
+      // Prefer server audio; if not present, fall back to local TTS
+      const playUrl = this.absoluteUrl(res.audioUrl);
+      if (playUrl) {
+        try { this.lastPTTAudio?.pause(); } catch {}
+        this.lastPTTAudio = new Audio(playUrl);
+        try { await this.lastPTTAudio.play(); } catch {}
+      } else {
+        this.speak(res.reply || '');
+      }
+    } catch (e: any) {
+      const reason = e?.message || 'Voice processing failed.';
+      // Show a small system chip, and also speak a friendly error
+      this.push({ id: this.uuid(), text: `Voice error: ${reason}`, sender: 'system', createdAt: new Date() });
+      this.speak('Sorry, I could not process your voice.');
+    } finally {
+      this.processingPTT = false;
     }
   }
   cancelPTT() { this.stopPTT(false); }
   // ---------------------------------------------------------------------------
 
-  private async safeAsk(text: string): Promise<string> {
-    try { return await this.chatApi.askBot({ message: text }); }
-    catch (e: any) { return e?.message || 'Network error.'; }
+  private absoluteUrl(path?: string | null): string | null {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    const base = environment.apiBaseUrl.replace(/\/+$/, '');
+    const rel  = path.startsWith('/') ? path : '/' + path;
+    return `${base}${rel}`;
   }
 
   // ===== template aliases =====
