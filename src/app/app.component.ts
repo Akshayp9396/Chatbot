@@ -293,53 +293,76 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   }
 
   // ===== Send message =====
-  async send() {
-    if (this.isSending) return;
+async send() {
+  if (this.isSending) return;
 
-    const trimmed = this.text.trim();
-    const hasImages = this.imagesSelected.length > 0;
-    const hasDocs   = this.docsSelected.length   > 0;
-    const hasText   = !!trimmed;
-    if (!hasText && !hasImages && !hasDocs) return;
+  const trimmed = this.text.trim();
+  const hasImages = this.imagesSelected.length > 0;
+  const hasDocs   = this.docsSelected.length   > 0;
+  const hasText   = !!trimmed;
+  if (!hasText && !hasImages && !hasDocs) return;
 
-    this.isSending = true;
-    try {
-      if (this.isRecUI) this.cancelRecording();
-      this.stopUserTyping(true);
+  this.isSending = true;
+  let typingShown = false;
 
-      const images: MsgImage[] = this.imagePreviews.map(p => ({ url: p.url, thumbUrl: p.url, name: p.name, sizeKB: p.sizeKB }));
-      const docs:   MsgDoc[]   = this.docPreviews.map(d => ({ url: d.url, name: d.name, sizeKB: d.sizeKB }));
-      this.push({ id: this.uuid(), text: hasText ? trimmed : null, images: images.length ? images : undefined, docs: docs.length ? docs : undefined, sender: 'user', createdAt: new Date() });
+  try {
+    if (this.isRecUI) this.cancelRecording();
+    this.stopUserTyping(true);
 
-      const imageFiles = [...this.imagesSelected];
-      const docFiles   = [...this.docsSelected];
+    // 1) Show the user's message immediately
+    const images = this.imagePreviews.map(p => ({ url: p.url, thumbUrl: p.url, name: p.name, sizeKB: p.sizeKB }));
+    const docs   = this.docPreviews.map(d => ({ url: d.url, name: d.name, sizeKB: d.sizeKB }));
+    this.push({
+      id: this.uuid(),
+      text: hasText ? trimmed : null,
+      images: images.length ? images : undefined,
+      docs:   docs.length   ? docs   : undefined,
+      sender: 'user',
+      createdAt: new Date()
+    });
 
-      this.text = ''; this.attachCount = 0; this.isAttachOpen = false;
-      this.imagesSelected = []; this.docsSelected = [];
-      this.imagePreviews = []; this.docPreviews = [];
-
-      try {
-        if (imageFiles.length) await this.chatApi.uploadManyImages(imageFiles);
-        if (docFiles.length)   await this.chatApi.uploadManyDocs(docFiles);
-      } catch (e: any) {
-        this.push({ id: this.uuid(), text: `Upload failed: ${e?.message || e}`, sender: 'bot', createdAt: new Date() });
-        return;
-      }
-
-      if (!this.showVoiceOverlay) this.showBotTyping();
-      try {
-        const reply = await this.chatApi.askBot({ message: trimmed });
-        if (!this.showVoiceOverlay) this.hideBotTyping();
-        this.push({ id: this.uuid(), text: reply, sender: 'bot', createdAt: new Date() });
-        this.maybeSpeak(reply);
-      } catch (e: any) {
-        if (!this.showVoiceOverlay) this.hideBotTyping();
-        this.push({ id: this.uuid(), text: e?.message || 'Failed to get reply.', sender: 'bot', createdAt: new Date() });
-      }
-    } finally {
-      this.isSending = false;
+    // 2) Show bot typing **before** uploads start
+    if (!this.showVoiceOverlay) {
+      this.showBotTyping();
+      typingShown = true;
     }
+
+    // 3) Copy files & clear UI state for snappy UX
+    const imageFiles = [...this.imagesSelected];
+    const docFiles   = [...this.docsSelected];
+    this.text = '';
+    this.attachCount = 0;
+    this.isAttachOpen = false;
+    this.imagesSelected = [];
+    this.docsSelected = [];
+    this.imagePreviews = [];
+    this.docPreviews = [];
+
+    // 4) Do uploads (typing stays visible during this)
+    try {
+      if (imageFiles.length) await this.chatApi.uploadManyImages(imageFiles);
+      if (docFiles.length)   await this.chatApi.uploadManyDocs(docFiles);
+    } catch (e: any) {
+      // Still hide typing in finally; just throw to be caught below
+      throw new Error(`Upload failed: ${e?.message || e}`);
+    }
+
+    // 5) Ask the bot (still keep typing visible)
+    const payload: any = { message: hasText ? trimmed : null };
+    const reply = await this.chatApi.askBot(payload);
+
+    // 6) Render bot reply
+    this.push({ id: this.uuid(), text: reply, sender: 'bot', createdAt: new Date() });
+    this.maybeSpeak(reply);
+
+  } catch (e: any) {
+    this.push({ id: this.uuid(), text: e?.message || 'Failed to get reply.', sender: 'bot', createdAt: new Date() });
+  } finally {
+    // 7) Always hide typing once everything is done (or failed)
+    if (typingShown) this.hideBotTyping();
+    this.isSending = false;
   }
+}
 
   // ===== Helpers =====
   public get imgCount(): number { return this.imagePreviews.length; }

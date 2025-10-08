@@ -223,43 +223,40 @@
 .hidden{ display:none !important; } /* used for toggling & file inputs */
 
 .composer-wrap{
+  position: relative;
   padding:12px;
   padding-bottom:calc(12px + env(safe-area-inset-bottom));
   background:transparent;
-   --composer-h: 62px;       
-  
+  --composer-h: 62px;
 }
 
+/* ── COMPOSER ───────────────────────────────────────── */
 .composer{
   position:relative;
   display:grid; align-items:center; gap:4px;
-  grid-template-columns:56px 1fr 56px 64px; /* + | input | mic | send */
-  width:90%; max-width:100%;
-   
+  grid-template-columns:56px 1fr 46px 64px; /* + | input | mic | send */
+  width:94%; max-width:100%;
   padding:8px 10px;
-  
+
   border-radius:999px; overflow:visible;
   background:
     linear-gradient(#fff,#fff) padding-box,
     linear-gradient(90deg,#3b5bfd,#51aeff,#00cdf6) border-box;
   border:2px solid transparent; box-shadow:0 10px 30px rgba(0,0,0,.08);
   background-size:300% 300%; animation:moveGradient 6s linear infinite;
-  
-display:flex-start; justify-content:center;
+
+  /* FIX: remove invalid display override that was forcing odd centering */
+  /* display:flex-start; justify-content:center;  <-- removed */
 }
 
 /* circle buttons (+ and mic) */
 .circle-btn{
-   width:44px; height:44px;
-
+  width:44px; height:44px;
   display:flex; align-items:center; justify-content:center;
   border:none; border-radius:50%; cursor:pointer;
   background:#fff; color:#3b5bfd;
   transition:background .2s ease, transform .2s ease;
   font-size:clamp(28px,3.6vw,40px);
-  
-  
-  
 }
 .circle-btn img{  width:22px; height:22px; display:block; }
 .circle-btn:hover{ background:#f1f5ff; transform:scale(1.05); }
@@ -270,7 +267,7 @@ display:flex-start; justify-content:center;
 
 /* send */
 .send-btn{
-   width:48px; height:48px;  padding:0;
+  width:48px; height:48px;  padding:0;
   display:flex; align-items:center; justify-content:center;
   border:none; border-radius:50%; cursor:pointer;
   transition:transform .2s ease, opacity .2s ease; color:#fff;
@@ -281,13 +278,11 @@ display:flex-start; justify-content:center;
 
 /* input */
 .composer input{
-   height:40px;
+  height:40px;
   font-size:16px; min-width:0; /* allow the grid cell to shrink on small screens */
   border:none; outline:none; background:transparent;
   padding:0 6px; color:#0f172a;
-
   line-height:1.2;
-
 }
 .composer input::placeholder{ color:#94a3b8; }
 
@@ -297,30 +292,20 @@ display:flex-start; justify-content:center;
   margin-top:8px; font-size:12px; color:#64748b;
 }
 
-
-
-
-
-/* Live chat mini button (outside, right of composer) — padding-safe */
+/* ── LIVE CHAT FAB ─────────────────────────────────── */
 .livechat-fab{
+  /* base size */
+  --icon-size: 30px;
+  --fab-pad: 14px;
+  --fab-size: calc(var(--icon-size) + (2 * var(--fab-pad)) + 6px);
 
-  --icon-size: 30px;         /* visible icon (img) size */
-  --fab-pad: 14px;           /* inner white space between icon and edge */
-  --fab-size: calc(var(--icon-size) + (2 * var(--fab-pad)) + 4px);
-  justify-content: center;
-  text-align: center;
-  position:absolute;
-  z-index:60;
-  width:var(--fab-size);
-  height:var(--fab-size);
-  box-sizing:border-box;                 /* keep outer size fixed when padding changes */
-  padding: var(--fab-pad);
-  border-radius:50%;
-  border:2px solid transparent;
-  display:grid; place-items:center;
-  cursor:pointer;
+  position:absolute; z-index:60;
+  width:var(--fab-size); height:var(--fab-size);
+  box-sizing:border-box; padding: var(--fab-pad);
+  border-radius:50%; border:2px solid transparent;
+  display:grid; place-items:center; cursor:pointer;
+  justify-content:center; text-align:center;
 
-  /* White face + blue gradient outline */
   background:
     linear-gradient(#fff, #fff) padding-box,
     linear-gradient(90deg,#3b5bfd,#51aeff,#00cdf6) border-box;
@@ -329,8 +314,9 @@ display:flex-start; justify-content:center;
   background-size:300% 300%;
   animation:moveGradient 6s linear infinite;
 
-  /* placement */
-  right:max(6px, calc((100% - 90%) / 2 - 8px));
+  /* FIX: simple, reliable placement with a constant gap to the edge.
+     The vertical position uses --composer-h so it stays perfectly centered. */
+  right:12px; /* FIXED */
   bottom:calc(12px + env(safe-area-inset-bottom) + (var(--composer-h) - var(--fab-size)) / 2);
 }
 
@@ -338,37 +324,46 @@ display:flex-start; justify-content:center;
 .livechat-fab:active{ transform:translateY(0); }
 .livechat-fab:focus-visible{ outline:2px solid #3b82f6; outline-offset:2px; }
 
-/* The icon always stays visible because its size is explicit */
 .livechat-fab img{
-  width:var(--icon-size);
-  height:var(--icon-size);
-  object-fit:contain;
-  display:block;
-  filter:none;
-  pointer-events:none;
+  width:var(--icon-size); height:var(--icon-size);
+  object-fit:contain; display:block; filter:none; pointer-events:none;
 }
 
-/* Mobile tweaks */
-@media (max-width:480px){
-  .composer-wrap{ --composer-h:56px; }
+/* ── SMALL-SCREEN FIXES (match look of reference) ──
+   Make the composer leave space for the FAB so they sit on one line,
+   keep a consistent gap, and slightly tighten controls. */
+@media (max-width:600px){
+  /* leave room for the FAB (48px) + 12px gap -> 60px total */
+  .composer{
+    width:calc(100% - 60px);              /* FIX */
+    grid-template-columns:48px 1fr 40px 56px; /* a bit tighter on small screens */
+    padding:6px 8px;
+  }
+  .circle-btn{ width:38px; height:38px; }
+  .send-btn{  width:42px; height:42px; }
+  .composer input{ height:36px; font-size:15px; }
+  /* make the FAB size that width calc expects: 48px total face */
   .livechat-fab{
-    --icon-size: 18px;
-    --fab-pad: 8px;            /* tighter on small screens */
-    /* --fab-size auto-recalculates */
-    right:8px;
+    --icon-size: 22px;
+    --fab-pad: 10px;                 /* 22 + (10*2) + 6 = 48 */
+    right:12px;                      /* keep the same gap */
   }
 }
+
+/* ultra-small phones */
 @media (max-width:360px){
+  /* FAB becomes ~42px; composer leaves ~52px (FAB + gap) */
   .livechat-fab{
-    --icon-size: 16px;
-    --fab-pad: 7px;
-    right:8px;
+    --icon-size: 20px;
+    --fab-pad: 8px;                  /* 20 + (8*2) + 6 = 42 */
+    right:10px;
+  }
+  .composer{
+    width:calc(100% - 52px);         /* 42 + 10 gap */
+    grid-template-columns:44px 1fr 36px 50px;
+    padding:6px 8px;
   }
 }
-
-
-
-
 
 
 /* =====================================================
