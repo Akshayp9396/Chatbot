@@ -1,8 +1,11 @@
 {
   "/api": {
-    "target": "http://192.168.29.120:8000",  
+    "target": "http://100.123.49.48:8000",
     "secure": false,
     "changeOrigin": true,
+    "pathRewrite": { "^/api": "" },
+    "timeout": 120000,
+    "proxyTimeout": 120000,
     "logLevel": "debug"
   }
 }
