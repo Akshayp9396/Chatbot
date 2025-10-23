@@ -13,7 +13,10 @@
    ===================================================== */
 
 
-   
+   * {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
 
 /* =====================================================
    1) Layout / Header
@@ -72,20 +75,91 @@
 /* =====================================================
    2) Canvas / Messages
    ===================================================== */
-.canvas{
-  flex:1 1 auto; min-height:0;
-  overflow:auto; background:#fff;
-  
+   
+html, body {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
-.msgs{
+.shell {
+  height: 100dvh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fixed nav bar */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 72px;
+  z-index: 100;
+}
+
+/* .canvas{
+  flex:1 1 auto; min-height:10px;
+  overflow:auto; background:#fff;
+
+} */
+
+.canvas {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  /* Fills the space between fixed navbar and fixed composer */
+  margin-top: 72px;           /* must match your navbar's height */
+  margin-bottom: 62px;        /* must match your composer-wrap's height */
+  height: calc(100dvh - 72px - 62px);  /* use dynamic viewport for mobile issues */
+  min-height: 0;              /* for flexbox containment */
+  overflow: hidden;
+}
+
+
+
+
+/* .msgs{
   display:flex; flex-direction:column; gap:10px;
   padding:14px;
-  /* padding-block-end: calc(14px + var(--composer-h)) !important; */
   
+  
+} */
+
+.msgs {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow-y: auto;
+  min-height: 0; /* Enables proper flexbox shrinking/scrolling */
 }
 
 
+html, body {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+.shell {
+  height: 100dvh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fixed nav bar */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 72px;
+  z-index: 100;
+}
 
 /* rows & avatars */
 .row{
@@ -193,6 +267,8 @@
 .row.me .avatar{ animation-delay:60ms; }
 
 
+
+
 /* =====================================================
    3) Quick replies (chips)
    ===================================================== */
@@ -222,12 +298,25 @@
    ===================================================== */
 .hidden{ display:none !important; } /* used for toggling & file inputs */
 
-.composer-wrap{
+/* .composer-wrap{
   position: relative;
   padding:12px;
   padding-bottom:calc(12px + env(safe-area-inset-bottom));
   background:transparent;
   --composer-h: 62px;
+} */
+
+
+.composer-wrap {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 0;
+  z-index: 110;
+  background: #fff;
+  padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  --composer-h: 62px;
+  border-top: 1px solid #e5e7eb00;
 }
 
 /* ── COMPOSER ───────────────────────────────────────── */
@@ -240,7 +329,7 @@
 
   border-radius:999px; overflow:visible;
   background:
-    linear-gradient(#fff,#fff) padding-box,
+    linear-gradient(#ffffff,#fff) padding-box,
     linear-gradient(90deg,#3b5bfd,#51aeff,#00cdf6) border-box;
   border:2px solid transparent; box-shadow:0 10px 30px rgba(0,0,0,.08);
   background-size:300% 300%; animation:moveGradient 6s linear infinite;
@@ -254,27 +343,33 @@
   width:44px; height:44px;
   display:flex; align-items:center; justify-content:center;
   border:none; border-radius:50%; cursor:pointer;
-  background:#fff; color:#3b5bfd;
+  background:#ffffff00; color:#3b5bfd;
   transition:background .2s ease, transform .2s ease;
   font-size:clamp(28px,3.6vw,40px);
+  -webkit-tap-highlight-color: transparent !important;
 }
 .circle-btn img{  width:22px; height:22px; display:block; }
-.circle-btn:hover{ background:#f1f5ff; transform:scale(1.05); }
-.circle-btn.mic.rec{ background:#fff0f0; color:#ef4444; }
+.circle-btn:hover{ background:#f1f5ff00; transform:scale(1.05); }
+.circle-btn.mic.rec{ background:#ffffff00; color:#ef4444; }
 .circle-btn.mic.rec img{
   filter:invert(39%) sepia(92%) saturate(3298%) hue-rotate(348deg) brightness(96%) contrast(101%);
+  
 }
+
 
 /* send */
 .send-btn{
   width:48px; height:48px;  padding:0;
   display:flex; align-items:center; justify-content:center;
   border:none; border-radius:50%; cursor:pointer;
-  transition:transform .2s ease, opacity .2s ease; color:#fff;
+  transition:transform .2s ease, opacity .2s ease; color:#ffffff;
+    background: transparent !important;
+  box-shadow: none !important;
 }
-.send-btn img{ width:32px; height:32px; display:block; }
+.send-btn img{ width:32px; height:32px; display:block;  }
 .send-btn:disabled{ opacity:.6; cursor:not-allowed; }
 .send-btn:hover:not(:disabled){ transform:scale(1.05); }
+
 
 /* input */
 .composer input{
