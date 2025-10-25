@@ -8,74 +8,50 @@ export class MarkdownPipe implements PipeTransform {
   
   constructor(private sanitizer: DomSanitizer) {}
 
- // REPLACE THE ENTIRE transform METHOD WITH THIS ENHANCED VERSION:
   transform(value: string): SafeHtml {
     if (!value) return '';
     
     let html = value;
 
-    // Split by lines for better processing
-    const lines = html.split('\n');
-    const processed: string[] = [];
-    let inList = false;
-    let listType = '';
+    // Escape HTML entities for safety
+    html = this.escapeHtml(html);
 
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i];
-      
-      // Check for unordered list
-      if (/^\s*[-*+]\s+/.test(line)) {
-        if (!inList || listType !== 'ul') {
-          if (inList) processed.push(`</${listType}>`);
-          processed.push('<ul>');
-          inList = true;
-          listType = 'ul';
-        }
-        line = line.replace(/^\s*[-*+]\s+/, '<li>') + '</li>';
-      }
-      // Check for ordered list
-      else if (/^\s*\d+\.\s+/.test(line)) {
-        if (!inList || listType !== 'ol') {
-          if (inList) processed.push(`</${listType}>`);
-          processed.push('<ol>');
-          inList = true;
-          listType = 'ol';
-        }
-        line = line.replace(/^\s*\d+\.\s+/, '<li>') + '</li>';
-      }
-      // Not a list item
-      else {
-        if (inList) {
-          processed.push(`</${listType}>`);
-          inList = false;
-        }
-      }
-      
-      processed.push(line);
-    }
-    
-    if (inList) {
-      processed.push(`</${listType}>`);
-    }
+    // Convert headers first
+    html = html.replace(/^### (.*)$/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*)$/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*)$/gim, '<h1>$1</h1>');
 
-    html = processed.join('\n');
-
-    // Apply other formatting (headers, bold, italic, code)
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    // Bold & Italic
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+    html = html.replace(/(?<!_)_([^_]+)_(?!_)/g, '<em>$1</em>');
+
+    // Code blocks (``````)
     html = html.replace(/``````/g, '<pre><code>$1</code></pre>');
-    html = html.replace(/\n/g, '<br>');
+    
+    // Inline code `code`
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Properly handle unordered lists
+    html = html.replace(/^\s*[-*+]\s+(.*)$/gm, '<li>$1</li>');
+    // Properly handle ordered lists
+    html = html.replace(/^\s*\d+\.\s+(.*)$/gm, '<li>$1</li>');
+
+    // Group consecutive <li> elements into a <ul>
+    html = html.replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/g, match => `<ul>${match}</ul>`);
+
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    // Remove new line to <br> replacement for better spacing control (Use CSS instead)
+    // html = html.replace(/\n/g, '<br>');
 
     return this.sanitizer.sanitize(1, html) || '';
   }
 
-  // Keep the escapeHtml method if you want extra security
   private escapeHtml(text: string): string {
-    const map: { [key: string]: string } = {
+    const map: { [key:string]: string } = {
       '&': '&amp;',
       '<': '&lt;',
       '>': '&gt;',

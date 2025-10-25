@@ -1049,152 +1049,115 @@ html, body {
 
 /* ------------------------------------------format-------------------------------------- */
 
-.chat-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  height: calc(100vh - 100px);
-  overflow-y: auto;
+
+.msg-text {
+  line-height: 1.4;
 }
 
-.message {
-  margin-bottom: 8px; /* Reduced from 1px to 8px for better message separation */
-  padding: 10px 14px; /* Reduced padding */
-  border-radius: 8px;
-  max-width: 80%;
-  word-wrap: break-word;
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.user-message {
-  background-color: #007bff;
-  color: white;
-  margin-left: auto;
-  text-align: right;
-}
-
-.bot-message {
-  background-color: #f1f3f5;
-  color: #212529;
-  margin-right: auto;
-}
-
-/* Markdown formatting styles - REDUCED SPACING */
-.message-content {
-  line-height: 1.4; /* Reduced from 1.6 */
-}
-
-.message-content h1 {
+.msg-text h1 {
   font-size: 1.5em;
   font-weight: 600;
-  margin: 6px 0 4px 0; /* Reduced margins */
+  margin: 6px 0 4px 0;
   color: inherit;
   border-bottom: 2px solid rgba(0, 0, 0, 0.1);
-  padding-bottom: 2px; /* Reduced */
+  padding-bottom: 2px;
 }
 
-.message-content h2 {
+.msg-text h2 {
   font-size: 1.3em;
   font-weight: 600;
-  margin: 5px 0 3px 0; /* Reduced margins */
+  margin: 5px 0 3px 0;
   color: inherit;
 }
 
-.message-content h3 {
+.msg-text h3 {
   font-size: 1.1em;
   font-weight: 600;
-  margin: 4px 0 2px 0; /* Reduced margins */
+  margin: 4px 0 2px 0;
   color: inherit;
 }
 
-.message-content strong {
+.msg-text strong {
   font-weight: 600;
   color: inherit;
 }
 
-.message-content em {
+.msg-text em {
   font-style: italic;
 }
 
-.message-content ul {
-  margin: 4px 0; /* Reduced from 8px */
-  padding-left: 18px; /* Reduced from 20px */
+.msg-text ul {
+  margin: 4px 0;
+  padding-left: 18px;
   list-style-type: disc;
 }
 
-.message-content ol {
-  margin: 4px 0; /* Reduced from 8px */
-  padding-left: 18px; /* Reduced from 20px */
+.msg-text ol {
+  margin: 4px 0;
+  padding-left: 18px;
   list-style-type: decimal;
 }
 
-.message-content li {
-  margin: 2px 0; /* Reduced from 4px */
-  line-height: 1.4; /* Reduced from 1.5 */
+.msg-text li {
+  margin: 2px 0;
+  line-height: 1.4;
 }
 
-.message-content code {
+.msg-text code {
   background-color: rgba(0, 0, 0, 0.1);
-  padding: 1px 4px; /* Reduced padding */
+  padding: 1px 4px;
   border-radius: 4px;
   font-family: 'Courier New', Consolas, monospace;
   font-size: 0.9em;
 }
 
-.bot-message .message-content code {
+.bot-message .msg-text code {
   background-color: rgba(0, 0, 0, 0.08);
 }
 
-.user-message .message-content code {
+.user-message .msg-text code {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-.message-content pre {
+.msg-text pre {
   background-color: rgba(0, 0, 0, 0.1);
-  padding: 8px; /* Reduced from 12px */
+  padding: 8px;
   border-radius: 6px;
   overflow-x: auto;
-  margin: 6px 0; /* Reduced from 10px */
+  margin: 6px 0;
 }
 
-.message-content pre code {
+.msg-text pre code {
   background: none;
   padding: 0;
 }
 
-.message-content a {
+.msg-text a {
   color: #007bff;
   text-decoration: underline;
 }
 
-.user-message .message-content a {
+.user-message .msg-text a {
   color: #ffffff;
   text-decoration: underline;
 }
 
-.bot-message .message-content a {
+.bot-message .msg-text a {
   color: #0056b3;
 }
 
-.message-content a:hover {
+.msg-text a:hover {
   opacity: 0.8;
 }
 
-/* Better spacing between elements - TIGHTER */
-.message-content > * {
+.msg-text > * {
   margin-top: 0;
 }
 
-.message-content > *:last-child {
+.msg-text > *:last-child {
   margin-bottom: 0;
 }
 
-/* Remove extra spacing from paragraphs if they exist */
-.message-content p {
-  margin: 2px 0; /* Minimal paragraph spacing */
+.msg-text p {
+  margin: 2px 0;
 }
