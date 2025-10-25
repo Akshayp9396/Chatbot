@@ -11,17 +11,18 @@ import { AppComponent } from './app.component';
 // Lottie
 import { LottieModule } from 'ngx-lottie';
 import player from 'lottie-web';
+import { MarkdownPipe } from './pipes/markdown.pipe';
 
 export function playerFactory() {
   return player;
 }
 
 @NgModule({
-  declarations: [AppComponent],
+  declarations: [AppComponent, MarkdownPipe],
   imports: [
     BrowserModule,
     FormsModule,
-    HttpClientModule,   // <-- add this
+    HttpClientModule, 
     // AppRoutingModule    // ok to keep even if unused
   
      LottieModule.forRoot({ player: playerFactory })

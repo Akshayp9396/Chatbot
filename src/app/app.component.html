@@ -1,6 +1,8 @@
 <div class="shell" *ngIf="chatOpen">
 
+
   <!-- ==== Top Bar ==== -->
+
 
   <header class="topbar">
     <div class="brand">
@@ -10,6 +12,7 @@
         [options]="brandLottieOpts"
         (animationCreated)="onBrandAnimCreated($event)">
       </ng-lottie>
+
 
       <!-- Title + Presence -->
       <div class="titles">
@@ -21,6 +24,7 @@
       </div>
     </div>
 
+
     <!-- Header Actions -->
     <div class="actions">
       <button
@@ -30,6 +34,7 @@
         (click)="onRefresh()">
         <img class="ico" src="assets/icons/refresh.svg" alt="" />
       </button>
+
 
       <button
         class="icon-btn"
@@ -41,6 +46,7 @@
     </div>
   </header>
 
+
   <!-- =========================
        Messages Canvas
        ========================= -->
@@ -48,16 +54,19 @@
     <div class="msgs">
       <ng-container *ngFor="let m of messages">
 
+
         <!-- BOT is typing -->
         <div
           class="row"
           *ngIf="m.sender === 'typing'"
           style="display:flex;align-items:center;gap:8px;">
 
+
           <div class="avatar talking bot-wrap" [class.thinking]="m.sender === 'typing'">
             <ng-lottie class="lottie-avatar" [options]="robotOpts"></ng-lottie>
             <ng-lottie class="overlay" [options]="searchToolOpts"></ng-lottie>
           </div>
+
 
           <div
             class="bubble bot typing"
@@ -69,6 +78,7 @@
             </ng-lottie>
           </div>
         </div>
+
 
         <!-- BOT message: avatar + bubble + timestamp -->
         <div
@@ -83,15 +93,18 @@
             </ng-lottie>
           </div>
 
+
           <div class="stack left">
             <div class="bubble bot">
 
-              <!-- Bot text -->
+
+              <!-- ✅ CHANGE 1: Bot text - Changed from [innerText] to [innerHTML] with markdown pipe -->
               <div
                 class="msg-text"
                 *ngIf="m.text"
-                [innerText]="m.text">
+                [innerHTML]="m.text | markdown">
               </div>
+
 
               <!-- Bot images -->
               <div class="msg-images" *ngIf="m.images?.length">
@@ -106,6 +119,7 @@
                     [alt]="img.name || 'Image'" />
                 </button>
               </div>
+
 
               <!-- Bot docs -->
               <div class="msg-docs" *ngIf="m.docs?.length">
@@ -123,12 +137,14 @@
               </div>
             </div>
 
+
             <!-- Bot timestamp -->
             <div class="meta-line left">
               {{ m.createdAt | date:'shortTime' }}
             </div>
           </div>
         </div>
+
 
         <!-- USER message: bubble + timestamp + tick + avatar -->
         <div
@@ -138,12 +154,14 @@
           <div class="stack right">
             <div class="bubble me">
 
+
               <!-- User text -->
               <div
                 class="msg-text"
                 *ngIf="m.text"
                 [innerText]="m.text">
               </div>
+
 
               <!-- User images -->
               <div
@@ -162,6 +180,7 @@
                     [alt]="img.name || 'Image'" />
                 </button>
               </div>
+
 
               <!-- User docs -->
               <div
@@ -183,6 +202,7 @@
               </div>
             </div>
 
+
             <!-- User timestamp + tick -->
             <div class="meta-line right">
               {{ m.createdAt | date:'shortTime' }}
@@ -191,11 +211,13 @@
             </div>
           </div>
 
+
           <!-- User avatar -->
           <div class="avatar me">
             <img src="assets/icons/user.png" alt="" aria-hidden="true" />
           </div>
         </div>
+
 
         <!-- System chip -->
         <div
@@ -205,6 +227,7 @@
           <div class="system" [innerText]="m.text"></div>
         </div>
       </ng-container>
+
 
       <!-- USER is typing (outside *ngFor) -->
       <div
@@ -219,6 +242,7 @@
           </div>
         </div>
 
+
         <div class="avatar me talking">
           <img src="assets/icons/user.png" alt="" aria-hidden="true" />
         </div>
@@ -226,10 +250,12 @@
     </div>
   </main>
 
+
   <!-- =========================
        Composer (Bottom)
        ========================= -->
   <footer class="composer-wrap">
+
 
     <!-- Quick Replies (first message only) -->
     <div class="quick-row" [class.hidden]="messages.length > 1">
@@ -237,6 +263,7 @@
       <button class="chip" (click)="sendQuick('Pricing')">💰 <span>Pricing</span></button>
       <button class="chip" (click)="sendQuick('FAQs')">🙋‍♂️ <span>FAQs</span></button>
     </div>
+
 
     <!-- TTS Status -->
     <div class="attach-status" *ngIf="ttsEnabled">
@@ -247,8 +274,10 @@
       </div>
     </div>
 
+
     <!-- Attachment Previews (Images + Docs) -->
     <div class="previews" *ngIf="imagePreviews.length || docPreviews.length">
+
 
       <!-- Image thumbnails -->
       <div
@@ -270,6 +299,7 @@
           </button>
         </div>
       </div>
+
 
       <!-- Document chips -->
       <div
@@ -295,8 +325,10 @@
       </div>
     </div>
 
+
     <!-- Composer Grid -->
     <div class="composer">
+
 
       <!-- Attach (+) with popover -->
       <div class="attach-anchor">
@@ -308,12 +340,14 @@
           +
         </button>
 
+
         <!-- Click-away backdrop -->
         <div
           class="attach-backdrop"
           *ngIf="showAttachMenu"
           (click)="showAttachMenu=false">
         </div>
+
 
         <!-- Popover menu -->
         <div
@@ -324,9 +358,10 @@
             <img class="att-ico" src="assets/icons/image-.png" alt="" />
             <div class="att-text">
               <div class="att-title">Upload photos </div>
-              <div class="att-sub">Upload photos; we’ll read the text</div>
+              <div class="att-sub">Upload photos; we'll read the text</div>
             </div>
           </button>
+
 
           <button class="att-item" (click)="pickDocs()">
             <img class="att-ico" src="assets/icons/document (1).png" alt="" />
@@ -335,6 +370,7 @@
               <div class="att-sub">PDF, DOCX, TXT…</div>
             </div>
           </button>
+
 
           <!-- Keeping the in-menu "Live chat" as-is (no UI changes elsewhere) -->
           <!-- <button class="att-item" (click)="openVoiceOverlay()"> 
@@ -345,12 +381,14 @@
             </div>
           </button> -->
 
+
         </div>
       </div>
       
       <!-- ===== Voice-to-Voice Overlay ===== -->
       <div class="voice-overlay" *ngIf="showVoiceOverlay" (click)="closeVoiceOverlay()">
         <div class="voice-sheet" (click)="$event.stopPropagation()">
+
 
           <header class="voice-head">
             <div class="vh-left">
@@ -361,6 +399,7 @@
             </div>
             <button class="vh-close" (click)="closeVoiceOverlay()" aria-label="Close">✕</button>
           </header>
+
 
           <div class="vh-body">
             <!-- gender picker -->
@@ -374,6 +413,7 @@
                       [class.active]="selectedGender==='male'"
                       (click)="setGender('male')">Male</button>
             </div>
+
 
             <!-- mic: PUSH-TO-TALK (hold to record, release to send) -->
             <button
@@ -406,6 +446,7 @@
         </div>
       </div>
 
+
       <!-- Input OR Recording chip -->
       <ng-container *ngIf="!isRecUI; else recordingTpl">
         <input
@@ -418,6 +459,7 @@
           aria-label="Message input" />
       </ng-container>
 
+
       <!-- Recording UI -->
       <ng-template #recordingTpl>
         <div class="rec-chip" role="group" aria-label="Recording controls">
@@ -428,15 +470,18 @@
             ×
           </button>
 
+
           <div class="rec-body">
             <div class="rec-left">
               <span class="rec-dot" aria-hidden="true"></span>
               <span class="rec-timer">{{ recElapsedLabel }}</span>
             </div>
 
+
             <div class="rec-wave" aria-hidden="true">
               <span *ngFor="let _ of waveBars"></span>
             </div>
+
 
             <div
               class="rec-text"
@@ -445,15 +490,16 @@
             </div>
           </div>
 
+
           <button
             class="rec-btn rec-ok"
-            (click)="confirmRecording()
-            "
+            (click)="confirmRecording()"
             aria-label="Confirm transcription">
             ✓
           </button>
         </div>
       </ng-template>
+
 
       <!-- Mic + Send (hidden when recording UI visible) -->
       <ng-container *ngIf="!isRecUI">
@@ -466,16 +512,17 @@
           <img src="assets/icons/mic.svg" alt="mic" />
         </button>
 
+
         <button
           class="send-btn"
-          (click)="send()
-          "
+          (click)="send()"
           [disabled]="!text.trim() && !imagePreviews.length && !docPreviews.length"
           title="Send" >
           <img src="assets/icons/send.svg" alt="Send" />
         </button>
         
       </ng-container>
+
 
       <!-- Hidden file inputs -->
       <input
@@ -486,6 +533,7 @@
         multiple
         (change)="onImagesSelected($event)" />
 
+
       <input
         #docInput
         type="file"
@@ -495,6 +543,7 @@
         (change)="onDocsSelected($event)" />
     </div>
 
+
     <!-- NEW: Live chat trigger button placed just outside the composer (right side) -->
     <button
       class="livechat-fab"
@@ -503,6 +552,7 @@
       aria-label="Live chat">
       <img src="assets/icons/voice.png" alt="" />
     </button>
+
 
   </footer>
 </div>

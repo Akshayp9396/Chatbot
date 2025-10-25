@@ -11,12 +11,9 @@
    8) Message Media (images, docs)
    9) Utilities / Animations / Media Queries
    ===================================================== */
-
-
    * {
   -webkit-tap-highlight-color: transparent !important;
 }
-
 
 /* =====================================================
    1) Layout / Header
@@ -39,7 +36,7 @@
 
 .brand{ display:flex; align-items:center;  gap: 8px ;       ; }
 .logo{
-  width: clamp(40px, 6vw, 56px) !important;  /* match .avatar clamp */
+  width: clamp(40px, 6vw, 56px) !important;
   height: clamp(40px, 6vw, 56px) !important;
   display: block;
   line-height: 0;
@@ -99,33 +96,24 @@ html, body {
   z-index: 100;
 }
 
-/* .canvas{
-  flex:1 1 auto; min-height:10px;
-  overflow:auto; background:#fff;
 
-} */
 
 .canvas {
   display: flex;
   flex-direction: column;
   background: #fff;
-  /* Fills the space between fixed navbar and fixed composer */
-  margin-top: 72px;           /* must match your navbar's height */
-  margin-bottom: 62px;        /* must match your composer-wrap's height */
+ 
+  margin-top: 72px;           
+  margin-bottom: 62px;       
   height: calc(100dvh - 72px - 62px);  /* use dynamic viewport for mobile issues */
-  min-height: 0;              /* for flexbox containment */
+  min-height: 0;              
   overflow: hidden;
 }
 
 
 
 
-/* .msgs{
-  display:flex; flex-direction:column; gap:10px;
-  padding:14px;
-  
-  
-} */
+
 
 .msgs {
   flex: 1 1 auto;
@@ -134,7 +122,7 @@ html, body {
   gap: 10px;
   padding: 14px;
   overflow-y: auto;
-  min-height: 0; /* Enables proper flexbox shrinking/scrolling */
+  min-height: 0;
 }
 
 
@@ -266,9 +254,6 @@ html, body {
 }
 .row.me .avatar{ animation-delay:60ms; }
 
-
-
-
 /* =====================================================
    3) Quick replies (chips)
    ===================================================== */
@@ -296,16 +281,7 @@ html, body {
 /* =====================================================
    4) Composer (container, input, buttons)
    ===================================================== */
-.hidden{ display:none !important; } /* used for toggling & file inputs */
-
-/* .composer-wrap{
-  position: relative;
-  padding:12px;
-  padding-bottom:calc(12px + env(safe-area-inset-bottom));
-  background:transparent;
-  --composer-h: 62px;
-} */
-
+.hidden{ display:none !important; } 
 
 .composer-wrap {
   position: fixed;
@@ -334,8 +310,7 @@ html, body {
   border:2px solid transparent; box-shadow:0 10px 30px rgba(0,0,0,.08);
   background-size:300% 300%; animation:moveGradient 6s linear infinite;
 
-  /* FIX: remove invalid display override that was forcing odd centering */
-  /* display:flex-start; justify-content:center;  <-- removed */
+
 }
 
 /* circle buttons (+ and mic) */
@@ -511,7 +486,7 @@ html, body {
   width:0.625rem; height:0.625rem; border-radius:50%;
   background:radial-gradient(circle at 40% 40%, #ff6b6b 0%, #ef4444 60%);
   box-shadow:0 0 0 0 rgba(239,68,68,.45);
-  animation:recPulse 1.2s ease-out infinite; /* @keyframes provided elsewhere */
+  animation:recPulse 1.2s ease-out infinite; 
 }
 .rec-timer{
   font-variant-numeric:tabular-nums;
@@ -822,14 +797,6 @@ html, body {
   100%{ box-shadow:0 0 0 0 rgba(59,91,253,0); }
 }
 
-
-
-
-
-
-
-
-
 /* ===== Voice Overlay (refined & responsive to 300×500) ===== */
 .voice-overlay{
   position:fixed; inset:0; z-index:9999;
@@ -1080,3 +1047,154 @@ html, body {
   transform-origin: center;
 }
 
+/* ------------------------------------------format-------------------------------------- */
+
+.chat-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.message {
+  margin-bottom: 8px; /* Reduced from 1px to 8px for better message separation */
+  padding: 10px 14px; /* Reduced padding */
+  border-radius: 8px;
+  max-width: 80%;
+  word-wrap: break-word;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.user-message {
+  background-color: #007bff;
+  color: white;
+  margin-left: auto;
+  text-align: right;
+}
+
+.bot-message {
+  background-color: #f1f3f5;
+  color: #212529;
+  margin-right: auto;
+}
+
+/* Markdown formatting styles - REDUCED SPACING */
+.message-content {
+  line-height: 1.4; /* Reduced from 1.6 */
+}
+
+.message-content h1 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin: 6px 0 4px 0; /* Reduced margins */
+  color: inherit;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 2px; /* Reduced */
+}
+
+.message-content h2 {
+  font-size: 1.3em;
+  font-weight: 600;
+  margin: 5px 0 3px 0; /* Reduced margins */
+  color: inherit;
+}
+
+.message-content h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 4px 0 2px 0; /* Reduced margins */
+  color: inherit;
+}
+
+.message-content strong {
+  font-weight: 600;
+  color: inherit;
+}
+
+.message-content em {
+  font-style: italic;
+}
+
+.message-content ul {
+  margin: 4px 0; /* Reduced from 8px */
+  padding-left: 18px; /* Reduced from 20px */
+  list-style-type: disc;
+}
+
+.message-content ol {
+  margin: 4px 0; /* Reduced from 8px */
+  padding-left: 18px; /* Reduced from 20px */
+  list-style-type: decimal;
+}
+
+.message-content li {
+  margin: 2px 0; /* Reduced from 4px */
+  line-height: 1.4; /* Reduced from 1.5 */
+}
+
+.message-content code {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 1px 4px; /* Reduced padding */
+  border-radius: 4px;
+  font-family: 'Courier New', Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.bot-message .message-content code {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.user-message .message-content code {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.message-content pre {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 8px; /* Reduced from 12px */
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0; /* Reduced from 10px */
+}
+
+.message-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.message-content a {
+  color: #007bff;
+  text-decoration: underline;
+}
+
+.user-message .message-content a {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.bot-message .message-content a {
+  color: #0056b3;
+}
+
+.message-content a:hover {
+  opacity: 0.8;
+}
+
+/* Better spacing between elements - TIGHTER */
+.message-content > * {
+  margin-top: 0;
+}
+
+.message-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Remove extra spacing from paragraphs if they exist */
+.message-content p {
+  margin: 2px 0; /* Minimal paragraph spacing */
+}
