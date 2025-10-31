@@ -28,7 +28,8 @@ export class MarkdownPipe implements PipeTransform {
     html = html.replace(/(?<!_)_([^_]+)_(?!_)/g, '<em>$1</em>');
 
     // Code blocks (``````)
-    html = html.replace(/``````/g, '<pre><code>$1</code></pre>');
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
     
     // Inline code `code`
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -39,7 +40,9 @@ export class MarkdownPipe implements PipeTransform {
     html = html.replace(/^\s*\d+\.\s+(.*)$/gm, '<li>$1</li>');
 
     // Group consecutive <li> elements into a <ul>
-    html = html.replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/g, match => `<ul>${match}</ul>`);
+    html = html.replace(/(<li>[\s\S]*?<\/li>)+/g, function(match) {
+      return '<ul>' + match + '</ul>';
+    });
 
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
